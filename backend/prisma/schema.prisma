@@ -1,0 +1,71 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  TEACHER
+  STUDENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  firstName    String     @db.VarChar(100)
+  lastName     String     @db.VarChar(100)
+  email        String?    @unique @db.VarChar(255)
+  passwordHash String     @db.VarChar(255)
+  role         UserRole
+  status       UserStatus @default(ACTIVE)
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  teacher Teacher?
+  student Student?
+
+  @@map("users")
+}
+
+model Teacher {
+  userId      String   @id @db.Uuid
+  phoneNumber String?  @db.VarChar(30)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  students Student[]
+
+  @@map("teachers")
+}
+
+model Student {
+  userId             String   @id @db.Uuid
+  teacherId          String   @db.Uuid
+  studentId          String   @unique @db.VarChar(50)
+  board              String   @db.VarChar(100)
+  grade              String   @db.VarChar(50)
+  rollNumber         String?  @db.VarChar(50)
+  parentName         String?  @db.VarChar(200)
+  mustChangePassword Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teacher Teacher @relation(fields: [teacherId], references: [userId], onDelete: Restrict)
+
+  @@index([teacherId])
+  @@index([teacherId, board, grade])
+  @@map("students")
+}

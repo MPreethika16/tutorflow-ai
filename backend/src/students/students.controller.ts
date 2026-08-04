@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -12,7 +13,6 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import type { JwtPayload } from '../auth/types/jwt-payload.type';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { StudentsService } from './students.service';
-
 @Controller('students')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.TEACHER)
@@ -28,4 +28,9 @@ export class StudentsController {
   ) {
     return this.studentsService.create(user.sub, dto);
   }
+
+  @Get()
+findAllStudents(@CurrentUser() user: JwtPayload) {
+  return this.studentsService.findAllForTeacher(user.sub);
+}
 }

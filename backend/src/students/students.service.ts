@@ -101,6 +101,37 @@ export class StudentsService {
     }
   }
 
+
+  async findAllForTeacher(teacherUserId: string) {
+  return this.prisma.student.findMany({
+    where: {
+      teacherId: teacherUserId,
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+    select: {
+      userId: true,
+      studentId: true,
+      board: true,
+      grade: true,
+      rollNumber: true,
+      parentName: true,
+      mustChangePassword: true,
+      createdAt: true,
+      updatedAt: true,
+      user: {
+        select: {
+          firstName: true,
+          lastName: true,
+          status: true,
+        },
+      },
+    },
+  });
+}
+
+
   private async generateUniqueStudentId(): Promise<string> {
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const suffix = randomBytes(4)

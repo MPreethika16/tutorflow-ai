@@ -12,7 +12,7 @@ import {
 } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateStudentDto } from './dto/create-student.dto';
-
+import { UpdateStudentDto } from './dto/update-student.dto';
 @Injectable()
 export class StudentsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -165,7 +165,128 @@ export class StudentsService {
     },
   });
 }
+  async updateForTeacher(
+  teacherUserId: string,
+  studentId: string,
+  dto: UpdateStudentDto,
+) {
+  // Step 1:
+  // Check whether this student belongs to the logged-in teacher.
+  //
+  // We search using BOTH:
+  // - public student ID from the route
+  // - teacher ID from the JWT
+  //
+  // This prevents one teacher from updating another teacher's student.
+  const ownedStudent = await this.prisma.student.findFirst({
+    where: {
+      studentId,
+      teacherId: teacherUserId,
+    },
+    select: {
+      userId: true,
+    },
+  });
 
+  // We return 404 for both cases:
+  // - the student does not exist
+  // - the student belongs to another teacher
+  //
+  // This avoids revealing information about another teacher's students.
+  if (!ownedStudent) {
+    throw new NotFoundException('Student not found');
+  }
+
+  // Step 2:
+  // Update the Student record and its related User record together.
+  //
+  // Student fields:
+  // - board
+  // - grade
+  // - rollNumber
+  // - parentName
+  //
+  // User fields:
+  // - firstName
+  // - lastName
+  //
+  // Prisma treats `undefined` as:
+  // "Do not update this field."
+  //
+  // For nullable values such as rollNumber and parentName:
+  // - field missing => undefined => keep old value
+  // - empty string => null => remove old value
+  const updatedStudent = await this.prisma.student.update({
+    where: {
+      // studentId is unique in the Prisma schema,
+      // so it can be used in an update query.
+      studentId,
+    },
+    data: {
+      board:
+        dto.board === undefined
+          ? undefined
+          : dto.board.trim(),
+
+      grade:
+        dto.grade === undefined
+          ? undefined
+          : dto.grade.trim(),
+
+      rollNumber:
+        dto.rollNumber === undefined
+          ? undefined
+          : dto.rollNumber.trim() || null,
+
+      parentName:
+        dto.parentName === undefined
+          ? undefined
+          : dto.parentName.trim() || null,
+
+      // Nested update:
+      // Student has a one-to-one relationship with User.
+      // This lets us update names without making a separate user.update call.
+      user: {
+        update: {
+          firstName:
+            dto.firstName === undefined
+              ? undefined
+              : dto.firstName.trim(),
+
+          lastName:
+            dto.lastName === undefined
+              ? undefined
+              : dto.lastName.trim(),
+        },
+      },
+    },
+
+    // Step 3:
+    // Return only fields that are safe and useful to the frontend.
+    //
+    // We do not return passwordHash or other authentication data.
+    select: {
+      userId: true,
+      studentId: true,
+      board: true,
+      grade: true,
+      rollNumber: true,
+      parentName: true,
+      mustChangePassword: true,
+      createdAt: true,
+      updatedAt: true,
+      user: {
+        select: {
+          firstName: true,
+          lastName: true,
+          status: true,
+        },
+      },
+    },
+  });
+
+  return updatedStudent;
+}
 
   private async generateUniqueStudentId(): Promise<string> {
     for (let attempt = 0; attempt < 5; attempt += 1) {

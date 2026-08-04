@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
    Param,
+    Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -14,6 +15,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import type { JwtPayload } from '../auth/types/jwt-payload.type';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { StudentsService } from './students.service';
+import { UpdateStudentDto } from './dto/update-student.dto';
 @Controller('students')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.TEACHER)
@@ -43,6 +45,19 @@ findOneStudent(
   return this.studentsService.findOneForTeacher(
     user.sub,
     studentUserId,
+  );
+}
+
+@Patch(':studentId')
+updateStudent(
+  @CurrentUser() user: JwtPayload,
+  @Param('studentId') studentId: string,
+  @Body() dto: UpdateStudentDto,
+) {
+  return this.studentsService.updateForTeacher(
+    user.sub,
+    studentId,
+    dto,
   );
 }
 }

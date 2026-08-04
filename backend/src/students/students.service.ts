@@ -101,7 +101,42 @@ export class StudentsService {
     }
   }
 
+  async findOneForTeacher(
+  teacherUserId: string,
+  studentUserId: string,
+) {
+  const student = await this.prisma.student.findFirst({
+    where: {
+      userId: studentUserId,
+      teacherId: teacherUserId,
+    },
+    select: {
+      userId: true,
+      studentId: true,
+      board: true,
+      grade: true,
+      rollNumber: true,
+      parentName: true,
+      mustChangePassword: true,
+      createdAt: true,
+      updatedAt: true,
+      user: {
+        select: {
+          firstName: true,
+          lastName: true,
+          status: true,
+          lastLoginAt: true,
+        },
+      },
+    },
+  });
 
+  if (!student) {
+    throw new NotFoundException('Student not found');
+  }
+
+  return student;
+}
   async findAllForTeacher(teacherUserId: string) {
   return this.prisma.student.findMany({
     where: {

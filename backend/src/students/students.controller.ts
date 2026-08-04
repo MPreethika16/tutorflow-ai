@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+   Param,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -32,5 +33,16 @@ export class StudentsController {
   @Get()
 findAllStudents(@CurrentUser() user: JwtPayload) {
   return this.studentsService.findAllForTeacher(user.sub);
+}
+
+@Get(':id')
+findOneStudent(
+  @CurrentUser() user: JwtPayload,
+  @Param('id') studentUserId: string,
+) {
+  return this.studentsService.findOneForTeacher(
+    user.sub,
+    studentUserId,
+  );
 }
 }

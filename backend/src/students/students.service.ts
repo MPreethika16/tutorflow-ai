@@ -1,0 +1,135 @@
+import {
+  ConflictException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
+import { randomBytes } from 'crypto';
+import * as bcrypt from 'bcrypt';
+import {
+  Prisma,
+  UserRole,
+} from '../generated/prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateStudentDto } from './dto/create-student.dto';
+
+@Injectable()
+export class StudentsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async create(
+    teacherUserId: string,
+    dto: CreateStudentDto,
+  ) {
+    const teacher = await this.prisma.teacher.findUnique({
+      where: {
+        userId: teacherUserId,
+      },
+      select: {
+        userId: true,
+      },
+    });
+
+    if (!teacher) {
+      throw new NotFoundException('Teacher profile was not found');
+    }
+
+    const studentId = await this.generateUniqueStudentId();
+    const temporaryPassword = this.generateTemporaryPassword();
+    const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+
+    try {
+      const studentUser = await this.prisma.user.create({
+        data: {
+          firstName: dto.firstName.trim(),
+          lastName: dto.lastName.trim(),
+          email: null,
+          passwordHash,
+          role: UserRole.STUDENT,
+          student: {
+            create: {
+              teacherId: teacherUserId,
+              studentId,
+              board: dto.board.trim(),
+              grade: dto.grade.trim(),
+              rollNumber: dto.rollNumber?.trim() || null,
+              parentName: dto.parentName?.trim() || null,
+              mustChangePassword: true,
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          status: true,
+          createdAt: true,
+          student: {
+            select: {
+              studentId: true,
+              board: true,
+              grade: true,
+              rollNumber: true,
+              parentName: true,
+              mustChangePassword: true,
+            },
+          },
+        },
+      });
+
+      return {
+        student: studentUser,
+        credentials: {
+          studentId,
+          temporaryPassword,
+        },
+      };
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'A student with the generated identifier already exists',
+        );
+      }
+
+      throw new InternalServerErrorException(
+        'Unable to create student account',
+      );
+    }
+  }
+
+  private async generateUniqueStudentId(): Promise<string> {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const suffix = randomBytes(4)
+        .toString('hex')
+        .toUpperCase();
+
+      const studentId = `STU-${suffix}`;
+
+      const existingStudent =
+        await this.prisma.student.findUnique({
+          where: {
+            studentId,
+          },
+          select: {
+            userId: true,
+          },
+        });
+
+      if (!existingStudent) {
+        return studentId;
+      }
+    }
+
+    throw new InternalServerErrorException(
+      'Unable to generate a unique student ID',
+    );
+  }
+
+  private generateTemporaryPassword(): string {
+    return `${randomBytes(6).toString('base64url')}#7a`;
+  }
+}

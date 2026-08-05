@@ -60,4 +60,15 @@ updateStudent(
     dto,
   );
 }
+
+@Post(':studentId/reset-password')
+resetStudentPassword(
+  @CurrentUser() user: JwtPayload,
+  @Param('studentId') studentId: string,
+) {
+  return this.studentsService.resetPasswordForTeacher(
+    user.sub,
+    studentId,
+  );
+}
 }

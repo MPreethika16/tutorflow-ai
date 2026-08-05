@@ -13,6 +13,12 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
+import { UserStatus } from '../generated/prisma/client';
+
+import {
+  generateTemporaryPassword,
+  hashPassword,
+} from '../common/utils/password.util';
 @Injectable()
 export class StudentsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -286,7 +292,106 @@ export class StudentsService {
   });
 
   return updatedStudent;
+}async resetPasswordForTeacher(
+  teacherUserId: string,
+  studentId: string,
+) {
+  // Step 1:
+  // Find the student using:
+  // - the public student ID from the route
+  // - the logged-in teacher ID from the JWT
+  //
+  // This is the ownership check.
+  // It prevents one teacher from resetting another teacher's student password.
+  const student = await this.prisma.student.findFirst({
+    where: {
+      studentId,
+      teacherId: teacherUserId,
+    },
+    select: {
+      studentId: true,
+      user: {
+        select: {
+          status: true,
+        },
+      },
+    },
+  });
+
+  // Step 2:
+  // If no matching student is found, return 404.
+  //
+  // This covers both cases:
+  // - the student does not exist
+  // - the student belongs to another teacher
+  //
+  // We do not reveal which one happened.
+  if (!student) {
+    throw new NotFoundException('Student not found');
+  }
+
+  // Step 3:
+  // Password reset is allowed only for ACTIVE students.
+  //
+  // If the student is inactive or suspended,
+  // the teacher must reactivate the account first.
+  if (student.user.status !== UserStatus.ACTIVE) {
+    throw new ConflictException(
+      'Reactivate the student before resetting the password',
+    );
+  }
+
+  // Step 4:
+  // Generate a brand-new temporary password.
+  //
+  // The teacher does not choose this password.
+  // Every reset creates a different temporary password.
+  const temporaryPassword = generateTemporaryPassword();
+
+  // Step 5:
+  // Hash the temporary password before saving it.
+  //
+  // The plain password is never stored in PostgreSQL.
+  const passwordHash = await hashPassword(temporaryPassword);
+
+  // Step 6:
+  // Update both related records in one nested Prisma update.
+  //
+  // Student table:
+  // mustChangePassword becomes true
+  //
+  // User table:
+  // passwordHash is replaced with the new hash
+  //
+  // The old password stops working immediately.
+  await this.prisma.student.update({
+    where: {
+      studentId,
+    },
+    data: {
+      mustChangePassword: true,
+      user: {
+        update: {
+          passwordHash,
+        },
+      },
+    },
+  });
+
+  // Step 7:
+  // Return the plain temporary password only once.
+  //
+  // It is returned in this response so the teacher can share it.
+  // It cannot be retrieved later because only the hash is stored.
+  return {
+    studentId,
+    temporaryPassword,
+    mustChangePassword: true,
+  };
 }
+
+
+
 
   private async generateUniqueStudentId(): Promise<string> {
     for (let attempt = 0; attempt < 5; attempt += 1) {

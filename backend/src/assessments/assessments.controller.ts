@@ -1,6 +1,8 @@
 import {
   Body,
   Controller,
+  Get,
+  Param,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -39,4 +41,15 @@ export class AssessmentsController {
       dto,
     );
   }
+
+  @Get(':assessmentId')
+getAssessment(
+  @CurrentUser() user: JwtPayload,
+  @Param('assessmentId') assessmentId: string,
+) {
+  return this.assessmentsService.findOneForTeacher(
+    user.sub,
+    assessmentId,
+  );
+}
 }

@@ -10,6 +10,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
+import { generateAssessmentId } from './utils/assessment.util';
 
 @Injectable()
 export class AssessmentsService {
@@ -97,52 +98,98 @@ export class AssessmentsService {
     // - maximumMarks
     //
     // The frontend cannot override these values.
-    return this.prisma.assessment.create({
-      data: {
-        teacherId: teacherUserId,
+    const assessmentId = generateAssessmentId();
+return this.prisma.assessment.create({
+  data: {
+    assessmentId,
+    teacherId: teacherUserId,
 
-        title: dto.title.trim(),
-        description:
-          dto.description === undefined
-            ? null
-            : dto.description.trim(),
+    title: dto.title.trim(),
+    description:
+      dto.description === undefined
+        ? null
+        : dto.description.trim(),
 
-        board: dto.board.trim(),
-        grade: dto.grade.trim(),
-        subject: dto.subject.trim(),
+    board: dto.board.trim(),
+    grade: dto.grade.trim(),
+    subject: dto.subject.trim(),
 
-        durationMinutes:
-          dto.durationMinutes ?? null,
+    durationMinutes: dto.durationMinutes ?? null,
 
-        instructions:
-          dto.instructions === undefined
-            ? null
-            : dto.instructions.trim(),
+    instructions:
+      dto.instructions === undefined
+        ? null
+        : dto.instructions.trim(),
 
-        startAt: startAt ?? null,
-        endAt: endAt ?? null,
+    startAt: startAt ?? null,
+    endAt: endAt ?? null,
 
-        status: AssessmentStatus.DRAFT,
-        maximumMarks: 0,
-      },
-
-      // Return only safe and useful assessment fields.
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        board: true,
-        grade: true,
-        subject: true,
-        durationMinutes: true,
-        instructions: true,
-        maximumMarks: true,
-        startAt: true,
-        endAt: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    status: AssessmentStatus.DRAFT,
+    maximumMarks: 0,
+  },
+  select: {
+    id: true,
+    assessmentId: true,
+    title: true,
+    description: true,
+    board: true,
+    grade: true,
+    subject: true,
+    durationMinutes: true,
+    instructions: true,
+    maximumMarks: true,
+    startAt: true,
+    endAt: true,
+    status: true,
+    createdAt: true,
+    updatedAt: true,
+  },
+});
   }
+
+
+  async findOneForTeacher(
+  teacherUserId: string,
+  assessmentId: string,
+) {
+  // Search using both:
+  // 1. Public assessment ID from the URL
+  // 2. Logged-in teacher ID from the JWT
+  //
+  // This prevents one teacher from viewing another teacher's assessment.
+  const assessment = await this.prisma.assessment.findFirst({
+    where: {
+      assessmentId,
+      teacherId: teacherUserId,
+    },
+    select: {
+      id: true,
+      assessmentId: true,
+      title: true,
+      description: true,
+      board: true,
+      grade: true,
+      subject: true,
+      durationMinutes: true,
+      instructions: true,
+      maximumMarks: true,
+      startAt: true,
+      endAt: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  // We return the same 404 response when:
+  // - the assessment does not exist
+  // - the assessment belongs to another teacher
+  //
+  // This avoids exposing another teacher's data.
+  if (!assessment) {
+    throw new NotFoundException('Assessment not found');
+  }
+
+  return assessment;
+}
 }

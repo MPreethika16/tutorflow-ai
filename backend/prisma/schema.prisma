@@ -80,6 +80,7 @@ model Student {
 
 model Assessment {
   id              String           @id @default(uuid()) @db.Uuid
+  assessmentId    String           @unique
   teacherId       String           @db.Uuid
   title           String
   description     String?

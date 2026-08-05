@@ -799,6 +799,7 @@ export type StudentScalarFieldEnum = (typeof StudentScalarFieldEnum)[keyof typeo
 
 export const AssessmentScalarFieldEnum = {
   id: 'id',
+  assessmentId: 'assessmentId',
   teacherId: 'teacherId',
   title: 'title',
   description: 'description',

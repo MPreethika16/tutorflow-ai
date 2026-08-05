@@ -38,6 +38,7 @@ export type AssessmentSumAggregateOutputType = {
 
 export type AssessmentMinAggregateOutputType = {
   id: string | null
+  assessmentId: string | null
   teacherId: string | null
   title: string | null
   description: string | null
@@ -56,6 +57,7 @@ export type AssessmentMinAggregateOutputType = {
 
 export type AssessmentMaxAggregateOutputType = {
   id: string | null
+  assessmentId: string | null
   teacherId: string | null
   title: string | null
   description: string | null
@@ -74,6 +76,7 @@ export type AssessmentMaxAggregateOutputType = {
 
 export type AssessmentCountAggregateOutputType = {
   id: number
+  assessmentId: number
   teacherId: number
   title: number
   description: number
@@ -104,6 +107,7 @@ export type AssessmentSumAggregateInputType = {
 
 export type AssessmentMinAggregateInputType = {
   id?: true
+  assessmentId?: true
   teacherId?: true
   title?: true
   description?: true
@@ -122,6 +126,7 @@ export type AssessmentMinAggregateInputType = {
 
 export type AssessmentMaxAggregateInputType = {
   id?: true
+  assessmentId?: true
   teacherId?: true
   title?: true
   description?: true
@@ -140,6 +145,7 @@ export type AssessmentMaxAggregateInputType = {
 
 export type AssessmentCountAggregateInputType = {
   id?: true
+  assessmentId?: true
   teacherId?: true
   title?: true
   description?: true
@@ -245,6 +251,7 @@ export type AssessmentGroupByArgs<ExtArgs extends runtime.Types.Extensions.Inter
 
 export type AssessmentGroupByOutputType = {
   id: string
+  assessmentId: string
   teacherId: string
   title: string
   description: string | null
@@ -286,6 +293,7 @@ export type AssessmentWhereInput = {
   OR?: Prisma.AssessmentWhereInput[]
   NOT?: Prisma.AssessmentWhereInput | Prisma.AssessmentWhereInput[]
   id?: Prisma.UuidFilter<"Assessment"> | string
+  assessmentId?: Prisma.StringFilter<"Assessment"> | string
   teacherId?: Prisma.UuidFilter<"Assessment"> | string
   title?: Prisma.StringFilter<"Assessment"> | string
   description?: Prisma.StringNullableFilter<"Assessment"> | string | null
@@ -305,6 +313,7 @@ export type AssessmentWhereInput = {
 
 export type AssessmentOrderByWithRelationInput = {
   id?: Prisma.SortOrder
+  assessmentId?: Prisma.SortOrder
   teacherId?: Prisma.SortOrder
   title?: Prisma.SortOrder
   description?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -324,6 +333,7 @@ export type AssessmentOrderByWithRelationInput = {
 
 export type AssessmentWhereUniqueInput = Prisma.AtLeast<{
   id?: string
+  assessmentId?: string
   AND?: Prisma.AssessmentWhereInput | Prisma.AssessmentWhereInput[]
   OR?: Prisma.AssessmentWhereInput[]
   NOT?: Prisma.AssessmentWhereInput | Prisma.AssessmentWhereInput[]
@@ -342,10 +352,11 @@ export type AssessmentWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"Assessment"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Assessment"> | Date | string
   teacher?: Prisma.XOR<Prisma.TeacherScalarRelationFilter, Prisma.TeacherWhereInput>
-}, "id">
+}, "id" | "assessmentId">
 
 export type AssessmentOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
+  assessmentId?: Prisma.SortOrder
   teacherId?: Prisma.SortOrder
   title?: Prisma.SortOrder
   description?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -372,6 +383,7 @@ export type AssessmentScalarWhereWithAggregatesInput = {
   OR?: Prisma.AssessmentScalarWhereWithAggregatesInput[]
   NOT?: Prisma.AssessmentScalarWhereWithAggregatesInput | Prisma.AssessmentScalarWhereWithAggregatesInput[]
   id?: Prisma.UuidWithAggregatesFilter<"Assessment"> | string
+  assessmentId?: Prisma.StringWithAggregatesFilter<"Assessment"> | string
   teacherId?: Prisma.UuidWithAggregatesFilter<"Assessment"> | string
   title?: Prisma.StringWithAggregatesFilter<"Assessment"> | string
   description?: Prisma.StringNullableWithAggregatesFilter<"Assessment"> | string | null
@@ -390,6 +402,7 @@ export type AssessmentScalarWhereWithAggregatesInput = {
 
 export type AssessmentCreateInput = {
   id?: string
+  assessmentId: string
   title: string
   description?: string | null
   board: string
@@ -408,6 +421,7 @@ export type AssessmentCreateInput = {
 
 export type AssessmentUncheckedCreateInput = {
   id?: string
+  assessmentId: string
   teacherId: string
   title: string
   description?: string | null
@@ -426,6 +440,7 @@ export type AssessmentUncheckedCreateInput = {
 
 export type AssessmentUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  assessmentId?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   board?: Prisma.StringFieldUpdateOperationsInput | string
@@ -444,6 +459,7 @@ export type AssessmentUpdateInput = {
 
 export type AssessmentUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  assessmentId?: Prisma.StringFieldUpdateOperationsInput | string
   teacherId?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -462,6 +478,7 @@ export type AssessmentUncheckedUpdateInput = {
 
 export type AssessmentCreateManyInput = {
   id?: string
+  assessmentId: string
   teacherId: string
   title: string
   description?: string | null
@@ -480,6 +497,7 @@ export type AssessmentCreateManyInput = {
 
 export type AssessmentUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  assessmentId?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   board?: Prisma.StringFieldUpdateOperationsInput | string
@@ -497,6 +515,7 @@ export type AssessmentUpdateManyMutationInput = {
 
 export type AssessmentUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  assessmentId?: Prisma.StringFieldUpdateOperationsInput | string
   teacherId?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -525,6 +544,7 @@ export type AssessmentOrderByRelationAggregateInput = {
 
 export type AssessmentCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  assessmentId?: Prisma.SortOrder
   teacherId?: Prisma.SortOrder
   title?: Prisma.SortOrder
   description?: Prisma.SortOrder
@@ -548,6 +568,7 @@ export type AssessmentAvgOrderByAggregateInput = {
 
 export type AssessmentMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  assessmentId?: Prisma.SortOrder
   teacherId?: Prisma.SortOrder
   title?: Prisma.SortOrder
   description?: Prisma.SortOrder
@@ -566,6 +587,7 @@ export type AssessmentMaxOrderByAggregateInput = {
 
 export type AssessmentMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  assessmentId?: Prisma.SortOrder
   teacherId?: Prisma.SortOrder
   title?: Prisma.SortOrder
   description?: Prisma.SortOrder
@@ -651,6 +673,7 @@ export type EnumAssessmentStatusFieldUpdateOperationsInput = {
 
 export type AssessmentCreateWithoutTeacherInput = {
   id?: string
+  assessmentId: string
   title: string
   description?: string | null
   board: string
@@ -668,6 +691,7 @@ export type AssessmentCreateWithoutTeacherInput = {
 
 export type AssessmentUncheckedCreateWithoutTeacherInput = {
   id?: string
+  assessmentId: string
   title: string
   description?: string | null
   board: string
@@ -714,6 +738,7 @@ export type AssessmentScalarWhereInput = {
   OR?: Prisma.AssessmentScalarWhereInput[]
   NOT?: Prisma.AssessmentScalarWhereInput | Prisma.AssessmentScalarWhereInput[]
   id?: Prisma.UuidFilter<"Assessment"> | string
+  assessmentId?: Prisma.StringFilter<"Assessment"> | string
   teacherId?: Prisma.UuidFilter<"Assessment"> | string
   title?: Prisma.StringFilter<"Assessment"> | string
   description?: Prisma.StringNullableFilter<"Assessment"> | string | null
@@ -732,6 +757,7 @@ export type AssessmentScalarWhereInput = {
 
 export type AssessmentCreateManyTeacherInput = {
   id?: string
+  assessmentId: string
   title: string
   description?: string | null
   board: string
@@ -749,6 +775,7 @@ export type AssessmentCreateManyTeacherInput = {
 
 export type AssessmentUpdateWithoutTeacherInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  assessmentId?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   board?: Prisma.StringFieldUpdateOperationsInput | string
@@ -766,6 +793,7 @@ export type AssessmentUpdateWithoutTeacherInput = {
 
 export type AssessmentUncheckedUpdateWithoutTeacherInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  assessmentId?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   board?: Prisma.StringFieldUpdateOperationsInput | string
@@ -783,6 +811,7 @@ export type AssessmentUncheckedUpdateWithoutTeacherInput = {
 
 export type AssessmentUncheckedUpdateManyWithoutTeacherInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  assessmentId?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   board?: Prisma.StringFieldUpdateOperationsInput | string
@@ -802,6 +831,7 @@ export type AssessmentUncheckedUpdateManyWithoutTeacherInput = {
 
 export type AssessmentSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
+  assessmentId?: boolean
   teacherId?: boolean
   title?: boolean
   description?: boolean
@@ -821,6 +851,7 @@ export type AssessmentSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
 
 export type AssessmentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
+  assessmentId?: boolean
   teacherId?: boolean
   title?: boolean
   description?: boolean
@@ -840,6 +871,7 @@ export type AssessmentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
 
 export type AssessmentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
+  assessmentId?: boolean
   teacherId?: boolean
   title?: boolean
   description?: boolean
@@ -859,6 +891,7 @@ export type AssessmentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
 
 export type AssessmentSelectScalar = {
   id?: boolean
+  assessmentId?: boolean
   teacherId?: boolean
   title?: boolean
   description?: boolean
@@ -875,7 +908,7 @@ export type AssessmentSelectScalar = {
   updatedAt?: boolean
 }
 
-export type AssessmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "teacherId" | "title" | "description" | "board" | "grade" | "subject" | "durationMinutes" | "instructions" | "maximumMarks" | "startAt" | "endAt" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["assessment"]>
+export type AssessmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "assessmentId" | "teacherId" | "title" | "description" | "board" | "grade" | "subject" | "durationMinutes" | "instructions" | "maximumMarks" | "startAt" | "endAt" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["assessment"]>
 export type AssessmentInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   teacher?: boolean | Prisma.TeacherDefaultArgs<ExtArgs>
 }
@@ -893,6 +926,7 @@ export type $AssessmentPayload<ExtArgs extends runtime.Types.Extensions.Internal
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
+    assessmentId: string
     teacherId: string
     title: string
     description: string | null
@@ -1332,6 +1366,7 @@ export interface Prisma__AssessmentClient<T, Null = never, ExtArgs extends runti
  */
 export interface AssessmentFieldRefs {
   readonly id: Prisma.FieldRef<"Assessment", 'String'>
+  readonly assessmentId: Prisma.FieldRef<"Assessment", 'String'>
   readonly teacherId: Prisma.FieldRef<"Assessment", 'String'>
   readonly title: Prisma.FieldRef<"Assessment", 'String'>
   readonly description: Prisma.FieldRef<"Assessment", 'String'>

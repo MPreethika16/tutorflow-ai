@@ -424,4 +424,97 @@ export class StudentsService {
   private generateTemporaryPassword(): string {
     return `${randomBytes(6).toString('base64url')}#7a`;
   }
+
+
+  async deactivateForTeacher(
+  teacherUserId: string,
+  studentId: string,
+) {
+  // Step 1:
+  // Find the student using both:
+  // - public student ID from the route
+  // - logged-in teacher ID from the JWT
+  //
+  // This is the ownership check.
+  // It prevents one teacher from deactivating another teacher's student.
+  const student = await this.prisma.student.findFirst({
+    where: {
+      studentId,
+      teacherId: teacherUserId,
+    },
+    select: {
+      studentId: true,
+      user: {
+        select: {
+          status: true,
+        },
+      },
+    },
+  });
+
+  // Step 2:
+  // Return the same 404 response when:
+  // - the student does not exist
+  // - the student belongs to another teacher
+  //
+  // This avoids exposing another teacher's student records.
+  if (!student) {
+    throw new NotFoundException('Student not found');
+  }
+
+  // Step 3:
+  // Deactivation is allowed only from the ACTIVE state.
+  //
+  // If the student is already INACTIVE or SUSPENDED,
+  // the current account state conflicts with this action.
+  if (student.user.status !== UserStatus.ACTIVE) {
+    throw new ConflictException(
+      'Only active student accounts can be deactivated',
+    );
+  }
+
+  // Step 4:
+  // Update the related User record through the Student relation.
+  //
+  // We keep both the User and Student records in the database.
+  // Only the account status changes.
+  const updatedStudent = await this.prisma.student.update({
+    where: {
+      studentId,
+    },
+    data: {
+      user: {
+        update: {
+          status: UserStatus.INACTIVE,
+        },
+      },
+    },
+
+    // Step 5:
+    // Return only safe and useful student information.
+    //
+    // passwordHash and other sensitive authentication fields
+    // are intentionally excluded.
+    select: {
+      userId: true,
+      studentId: true,
+      board: true,
+      grade: true,
+      rollNumber: true,
+      parentName: true,
+      mustChangePassword: true,
+      createdAt: true,
+      updatedAt: true,
+      user: {
+        select: {
+          firstName: true,
+          lastName: true,
+          status: true,
+        },
+      },
+    },
+  });
+
+  return updatedStudent;
+}
 }

@@ -71,4 +71,15 @@ resetStudentPassword(
     studentId,
   );
 }
+
+@Patch(':studentId/deactivate')
+deactivateStudent(
+  @CurrentUser() user: JwtPayload,
+  @Param('studentId') studentId: string,
+) {
+  return this.studentsService.deactivateForTeacher(
+    user.sub,
+    studentId,
+  );
+}
 }

@@ -17,6 +17,10 @@ import type { JwtPayload } from '../auth/types/jwt-payload.type';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { StudentsService } from './students.service';
 import { UpdateStudentDto } from './dto/update-student.dto';
+
+
+
+import { ListStudentsDto } from './dto/list-students.dto';
 @Controller('students')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.TEACHER)
@@ -33,25 +37,16 @@ export class StudentsController {
     return this.studentsService.create(user.sub, dto);
   }
 
- @Get()
+
+
+@Get()
 findAllStudents(
   @CurrentUser() user: JwtPayload,
-  @Query('search') search?: string,
+  @Query() query: ListStudentsDto,
 ) {
   return this.studentsService.findAllForTeacher(
     user.sub,
-    search,
-  );
-}
-
-@Get(':id')
-findOneStudent(
-  @CurrentUser() user: JwtPayload,
-  @Param('id') studentUserId: string,
-) {
-  return this.studentsService.findOneForTeacher(
-    user.sub,
-    studentUserId,
+    query,
   );
 }
 

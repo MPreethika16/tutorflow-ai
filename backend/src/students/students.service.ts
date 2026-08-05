@@ -19,6 +19,9 @@ import {
   generateTemporaryPassword,
   hashPassword,
 } from '../common/utils/password.util';
+
+
+import { ListStudentsDto } from './dto/list-students.dto';
 @Injectable()
 export class StudentsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -143,90 +146,117 @@ export class StudentsService {
 
   return student;
 }
+
 async findAllForTeacher(
   teacherUserId: string,
-  search?: string,
+  query: ListStudentsDto,
 ) {
-  // Remove extra spaces.
-  // Examples:
-  // "  rahul  " -> "rahul"
-  // "   " -> ""
+  const { search, page = 1, limit = 10 } = query;
+
+  // Remove spaces around search text.
+  // "  rah  " becomes "rah".
   const normalizedSearch = search?.trim();
 
-  return this.prisma.student.findMany({
-    where: {
-      // Security rule:
-      // always limit results to the logged-in teacher.
-      teacherId: teacherUserId,
+  // Offset pagination formula:
+  // page 1, limit 10 -> skip 0
+  // page 2, limit 10 -> skip 10
+  // page 3, limit 10 -> skip 20
+  const skip = (page - 1) * limit;
 
-      // Add the OR search only when search has real text.
-      //
-      // If normalizedSearch is undefined or empty,
-      // this becomes undefined and Prisma ignores it.
-      OR: normalizedSearch
-        ? [
-            {
-              studentId: {
+  // Build the filter once and reuse it for:
+  // 1. fetching the current page
+  // 2. counting all matching students
+  const where: Prisma.StudentWhereInput = {
+    teacherId: teacherUserId,
+
+    OR: normalizedSearch
+      ? [
+          {
+            studentId: {
+              contains: normalizedSearch,
+              mode: 'insensitive',
+            },
+          },
+          {
+            rollNumber: {
+              contains: normalizedSearch,
+              mode: 'insensitive',
+            },
+          },
+          {
+            parentName: {
+              contains: normalizedSearch,
+              mode: 'insensitive',
+            },
+          },
+          {
+            user: {
+              firstName: {
                 contains: normalizedSearch,
                 mode: 'insensitive',
               },
             },
-            {
-              rollNumber: {
+          },
+          {
+            user: {
+              lastName: {
                 contains: normalizedSearch,
                 mode: 'insensitive',
               },
             },
-            {
-              parentName: {
-                contains: normalizedSearch,
-                mode: 'insensitive',
-              },
-            },
-            {
-              user: {
-                firstName: {
-                  contains: normalizedSearch,
-                  mode: 'insensitive',
-                },
-              },
-            },
-            {
-              user: {
-                lastName: {
-                  contains: normalizedSearch,
-                  mode: 'insensitive',
-                },
-              },
-            },
-          ]
-        : undefined,
-    },
+          },
+        ]
+      : undefined,
+  };
 
-    orderBy: {
-      createdAt: 'desc',
-    },
-
-    select: {
-      userId: true,
-      studentId: true,
-      board: true,
-      grade: true,
-      rollNumber: true,
-      parentName: true,
-      mustChangePassword: true,
-      createdAt: true,
-      updatedAt: true,
-      user: {
-        select: {
-          firstName: true,
-          lastName: true,
-          status: true,
+  // These two queries do not depend on each other,
+  // so Prisma can run them together in one transaction.
+  const [students, total] = await this.prisma.$transaction([
+    this.prisma.student.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        userId: true,
+        studentId: true,
+        board: true,
+        grade: true,
+        rollNumber: true,
+        parentName: true,
+        mustChangePassword: true,
+        createdAt: true,
+        updatedAt: true,
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            status: true,
+          },
         },
       },
+    }),
+
+    this.prisma.student.count({
+      where,
+    }),
+  ]);
+
+  const totalPages = Math.ceil(total / limit);
+
+  return {
+    data: students,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
     },
-  });
+  };
 }
+
   async updateForTeacher(
   teacherUserId: string,
   studentId: string,

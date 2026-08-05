@@ -4,6 +4,7 @@ import {
   Get,
    Param,
     Patch,
+     Query,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -32,9 +33,15 @@ export class StudentsController {
     return this.studentsService.create(user.sub, dto);
   }
 
-  @Get()
-findAllStudents(@CurrentUser() user: JwtPayload) {
-  return this.studentsService.findAllForTeacher(user.sub);
+ @Get()
+findAllStudents(
+  @CurrentUser() user: JwtPayload,
+  @Query('search') search?: string,
+) {
+  return this.studentsService.findAllForTeacher(
+    user.sub,
+    search,
+  );
 }
 
 @Get(':id')
@@ -78,6 +85,17 @@ deactivateStudent(
   @Param('studentId') studentId: string,
 ) {
   return this.studentsService.deactivateForTeacher(
+    user.sub,
+    studentId,
+  );
+}
+
+@Patch(':studentId/activate')
+activateStudent(
+  @CurrentUser() user: JwtPayload,
+  @Param('studentId') studentId: string,
+) {
+  return this.studentsService.activateForTeacher(
     user.sub,
     studentId,
   );

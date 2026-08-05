@@ -143,14 +143,70 @@ export class StudentsService {
 
   return student;
 }
-  async findAllForTeacher(teacherUserId: string) {
+async findAllForTeacher(
+  teacherUserId: string,
+  search?: string,
+) {
+  // Remove extra spaces.
+  // Examples:
+  // "  rahul  " -> "rahul"
+  // "   " -> ""
+  const normalizedSearch = search?.trim();
+
   return this.prisma.student.findMany({
     where: {
+      // Security rule:
+      // always limit results to the logged-in teacher.
       teacherId: teacherUserId,
+
+      // Add the OR search only when search has real text.
+      //
+      // If normalizedSearch is undefined or empty,
+      // this becomes undefined and Prisma ignores it.
+      OR: normalizedSearch
+        ? [
+            {
+              studentId: {
+                contains: normalizedSearch,
+                mode: 'insensitive',
+              },
+            },
+            {
+              rollNumber: {
+                contains: normalizedSearch,
+                mode: 'insensitive',
+              },
+            },
+            {
+              parentName: {
+                contains: normalizedSearch,
+                mode: 'insensitive',
+              },
+            },
+            {
+              user: {
+                firstName: {
+                  contains: normalizedSearch,
+                  mode: 'insensitive',
+                },
+              },
+            },
+            {
+              user: {
+                lastName: {
+                  contains: normalizedSearch,
+                  mode: 'insensitive',
+                },
+              },
+            },
+          ]
+        : undefined,
     },
+
     orderBy: {
       createdAt: 'desc',
     },
+
     select: {
       userId: true,
       studentId: true,
@@ -517,4 +573,96 @@ export class StudentsService {
 
   return updatedStudent;
 }
+
+
+async activateForTeacher(
+  teacherUserId: string,
+  studentId: string,
+) {
+  // 1. Check that the student belongs to the logged-in teacher.
+  const student = await this.prisma.student.findFirst({
+    where: {
+      studentId,
+      teacherId: teacherUserId,
+    },
+    select: {
+      studentId: true,
+      user: {
+        select: {
+          status: true,
+        },
+      },
+    },
+  });
+
+  // 2. Return 404 if the student does not exist
+  // or belongs to another teacher.
+  if (!student) {
+    throw new NotFoundException('Student not found');
+  }
+
+  // 3. Only INACTIVE students can be activated.
+  if (student.user.status === UserStatus.ACTIVE) {
+    throw new ConflictException(
+      'Student account is already active',
+    );
+  }
+
+  if (student.user.status === UserStatus.SUSPENDED) {
+    throw new ConflictException(
+      'Suspended student accounts cannot be activated',
+    );
+  }
+
+  // 4. Generate a new temporary password.
+  const temporaryPassword = generateTemporaryPassword();
+
+  // 5. Hash the password before storing it.
+  const passwordHash = await hashPassword(
+    temporaryPassword,
+  );
+
+  // 6. Update Student and related User together.
+  const updatedStudent = await this.prisma.student.update({
+    where: {
+      studentId,
+    },
+    data: {
+      mustChangePassword: true,
+      user: {
+        update: {
+          status: UserStatus.ACTIVE,
+          passwordHash,
+        },
+      },
+    },
+    select: {
+      userId: true,
+      studentId: true,
+      board: true,
+      grade: true,
+      rollNumber: true,
+      parentName: true,
+      mustChangePassword: true,
+      createdAt: true,
+      updatedAt: true,
+      user: {
+        select: {
+          firstName: true,
+          lastName: true,
+          status: true,
+        },
+      },
+    },
+  });
+
+  // 7. Return the password only once.
+  return {
+    student: updatedStudent,
+    credentials: {
+      temporaryPassword,
+    },
+  };
+}
+
 }

@@ -6,11 +6,13 @@ import {
 
 import {
   AssessmentStatus,
+  Prisma,
 } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { generateAssessmentId } from './utils/assessment.util';
+import { ListAssessmentsDto } from './dto/list-assessments.dto';
 
 @Injectable()
 export class AssessmentsService {
@@ -191,5 +193,129 @@ return this.prisma.assessment.create({
   }
 
   return assessment;
+}
+
+    async findAllForTeacher(
+  teacherUserId: string,
+  query: ListAssessmentsDto,
+) {
+  const {
+    search,
+    status,
+    board,
+    grade,
+    subject,
+    page = 1,
+    limit = 10,
+  } = query;
+
+  // Remove extra spaces from optional text filters.
+  const normalizedSearch = search?.trim();
+  const normalizedBoard = board?.trim();
+  const normalizedGrade = grade?.trim();
+  const normalizedSubject = subject?.trim();
+
+  // Offset pagination:
+  // page 1 -> skip 0
+  // page 2 -> skip limit
+  const skip = (page - 1) * limit;
+
+  // Build one reusable filter for both listing and counting.
+  const where: Prisma.AssessmentWhereInput = {
+    // Security rule:
+    // always return only this teacher's assessments.
+    teacherId: teacherUserId,
+
+    // Exact enum filter when provided.
+    status,
+
+    // Case-insensitive academic filters.
+    board: normalizedBoard
+      ? {
+          equals: normalizedBoard,
+          mode: 'insensitive',
+        }
+      : undefined,
+
+    grade: normalizedGrade
+      ? {
+          equals: normalizedGrade,
+          mode: 'insensitive',
+        }
+      : undefined,
+
+    subject: normalizedSubject
+      ? {
+          equals: normalizedSubject,
+          mode: 'insensitive',
+        }
+      : undefined,
+
+    // Flexible partial search across useful fields.
+    OR: normalizedSearch
+      ? [
+          {
+            assessmentId: {
+              contains: normalizedSearch,
+              mode: 'insensitive',
+            },
+          },
+          {
+            title: {
+              contains: normalizedSearch,
+              mode: 'insensitive',
+            },
+          },
+          {
+            description: {
+              contains: normalizedSearch,
+              mode: 'insensitive',
+            },
+          },
+        ]
+      : undefined,
+  };
+
+  // Fetch the requested page and count all matching rows together.
+  const [assessments, total] =
+    await this.prisma.$transaction([
+      this.prisma.assessment.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        select: {
+          assessmentId: true,
+          title: true,
+          description: true,
+          board: true,
+          grade: true,
+          subject: true,
+          durationMinutes: true,
+          maximumMarks: true,
+          startAt: true,
+          endAt: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+
+      this.prisma.assessment.count({
+        where,
+      }),
+    ]);
+
+  return {
+    data: assessments,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 }
 }

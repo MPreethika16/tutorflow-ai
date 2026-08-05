@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Query,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -16,7 +17,7 @@ import { UserRole } from '../generated/prisma/client';
 
 import { AssessmentsService } from './assessments.service';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
-
+import { ListAssessmentsDto } from './dto/list-assessments.dto';
 @Controller('assessments')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.TEACHER)
@@ -50,6 +51,17 @@ getAssessment(
   return this.assessmentsService.findOneForTeacher(
     user.sub,
     assessmentId,
+  );
+}
+
+@Get()
+listAssessments(
+  @CurrentUser() user: JwtPayload,
+  @Query() query: ListAssessmentsDto,
+) {
+  return this.assessmentsService.findAllForTeacher(
+    user.sub,
+    query,
   );
 }
 }

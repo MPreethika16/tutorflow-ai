@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -13,7 +14,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { generateAssessmentId } from './utils/assessment.util';
 import { ListAssessmentsDto } from './dto/list-assessments.dto';
-
+import { UpdateAssessmentDto } from './dto/update-assessment.dto';
 @Injectable()
 export class AssessmentsService {
   constructor(
@@ -317,5 +318,147 @@ return this.prisma.assessment.create({
       totalPages: Math.ceil(total / limit),
     },
   };
+}
+    async updateForTeacher(
+  teacherUserId: string,
+  assessmentId: string,
+  dto: UpdateAssessmentDto,
+) {
+  // Step 1:
+  // Find the assessment using both the public assessment ID
+  // and the logged-in teacher ID.
+  //
+  // This is the ownership check.
+  const assessment =
+    await this.prisma.assessment.findFirst({
+      where: {
+        assessmentId,
+        teacherId: teacherUserId,
+      },
+      select: {
+        id: true,
+        status: true,
+        startAt: true,
+        endAt: true,
+      },
+    });
+
+  // Covers:
+  // - assessment does not exist
+  // - assessment belongs to another teacher
+  if (!assessment) {
+    throw new NotFoundException('Assessment not found');
+  }
+
+  // Step 2:
+  // Only draft assessments are editable.
+  //
+  // Published, closed, and archived assessments are
+  // treated as historical records.
+  if (assessment.status !== AssessmentStatus.DRAFT) {
+    throw new ConflictException(
+      'Only draft assessments can be updated',
+    );
+  }
+
+  // Step 3:
+  // Detect whether the client sent schedule fields.
+  const startAtWasProvided = dto.startAt !== undefined;
+  const endAtWasProvided = dto.endAt !== undefined;
+
+  // The schedule must be updated as a pair.
+  if (startAtWasProvided !== endAtWasProvided) {
+    throw new BadRequestException(
+      'startAt and endAt must be provided together',
+    );
+  }
+
+  // Step 4:
+  // Convert date strings only when both schedule fields
+  // were included in the request.
+  const newStartAt =
+    startAtWasProvided && dto.startAt
+      ? new Date(dto.startAt)
+      : undefined;
+
+  const newEndAt =
+    endAtWasProvided && dto.endAt
+      ? new Date(dto.endAt)
+      : undefined;
+
+  // When a new schedule is provided,
+  // the end must be later than the start.
+  if (
+    newStartAt &&
+    newEndAt &&
+    newEndAt.getTime() <= newStartAt.getTime()
+  ) {
+    throw new BadRequestException(
+      'endAt must be later than startAt',
+    );
+  }
+
+  // Step 5:
+  // Update only the fields supplied by the client.
+  //
+  // Prisma ignores undefined values, so omitted fields
+  // remain unchanged.
+  return this.prisma.assessment.update({
+    where: {
+      id: assessment.id,
+    },
+    data: {
+      title:
+        dto.title === undefined
+          ? undefined
+          : dto.title.trim(),
+
+      description:
+        dto.description === undefined
+          ? undefined
+          : dto.description.trim(),
+
+      board:
+        dto.board === undefined
+          ? undefined
+          : dto.board.trim(),
+
+      grade:
+        dto.grade === undefined
+          ? undefined
+          : dto.grade.trim(),
+
+      subject:
+        dto.subject === undefined
+          ? undefined
+          : dto.subject.trim(),
+
+      durationMinutes: dto.durationMinutes,
+
+      instructions:
+        dto.instructions === undefined
+          ? undefined
+          : dto.instructions.trim(),
+
+      startAt: newStartAt,
+      endAt: newEndAt,
+    },
+    select: {
+      assessmentId: true,
+      title: true,
+      description: true,
+      board: true,
+      grade: true,
+      subject: true,
+      durationMinutes: true,
+      instructions: true,
+      maximumMarks: true,
+      startAt: true,
+      endAt: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
 }
 }

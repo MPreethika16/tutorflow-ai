@@ -695,4 +695,70 @@ async activateForTeacher(
   };
 }
 
+async getStatisticsForTeacher(teacherUserId: string) {
+  // All queries use the logged-in teacher ID.
+  // This ensures one teacher cannot see another teacher's statistics.
+
+  const [
+    totalStudents,
+    activeStudents,
+    inactiveStudents,
+    suspendedStudents,
+    studentsWhoMustChangePassword,
+  ] = await this.prisma.$transaction([
+    // Count every student owned by this teacher.
+    this.prisma.student.count({
+      where: {
+        teacherId: teacherUserId,
+      },
+    }),
+
+    // Count students whose related User account is ACTIVE.
+    this.prisma.student.count({
+      where: {
+        teacherId: teacherUserId,
+        user: {
+          status: UserStatus.ACTIVE,
+        },
+      },
+    }),
+
+    // Count students whose related User account is INACTIVE.
+    this.prisma.student.count({
+      where: {
+        teacherId: teacherUserId,
+        user: {
+          status: UserStatus.INACTIVE,
+        },
+      },
+    }),
+
+    // Count students whose related User account is SUSPENDED.
+    this.prisma.student.count({
+      where: {
+        teacherId: teacherUserId,
+        user: {
+          status: UserStatus.SUSPENDED,
+        },
+      },
+    }),
+
+    // Count students who still have a temporary password.
+    this.prisma.student.count({
+      where: {
+        teacherId: teacherUserId,
+        mustChangePassword: true,
+      },
+    }),
+  ]);
+
+  return {
+    totalStudents,
+    activeStudents,
+    inactiveStudents,
+    suspendedStudents,
+    studentsWhoMustChangePassword,
+  };
+}
+
 }

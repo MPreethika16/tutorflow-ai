@@ -19,6 +19,13 @@ enum UserStatus {
   SUSPENDED
 }
 
+enum AssessmentStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
 model User {
   id           String     @id @default(uuid()) @db.Uuid
   firstName    String     @db.VarChar(100)
@@ -45,7 +52,8 @@ model Teacher {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  students Student[]
+  students    Student[]
+  assessments Assessment[]
 
   @@map("teachers")
 }
@@ -68,4 +76,28 @@ model Student {
   @@index([teacherId])
   @@index([teacherId, board, grade])
   @@map("students")
+}
+
+model Assessment {
+  id              String           @id @default(uuid()) @db.Uuid
+  teacherId       String           @db.Uuid
+  title           String
+  description     String?
+  board           String
+  grade           String
+  subject         String
+  durationMinutes Int?
+  instructions    String?
+  maximumMarks    Int              @default(0)
+  startAt         DateTime?
+  endAt           DateTime?
+  status          AssessmentStatus @default(DRAFT)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  teacher Teacher @relation(fields: [teacherId], references: [userId], onDelete: Restrict)
+
+  @@index([teacherId])
+  @@index([teacherId, status])
+  @@index([board, grade, subject])
 }

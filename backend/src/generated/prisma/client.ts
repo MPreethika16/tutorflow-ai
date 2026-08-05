@@ -54,3 +54,8 @@ export type Teacher = Prisma.TeacherModel
  * 
  */
 export type Student = Prisma.StudentModel
+/**
+ * Model Assessment
+ * 
+ */
+export type Assessment = Prisma.AssessmentModel

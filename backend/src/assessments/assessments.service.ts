@@ -461,4 +461,138 @@ return this.prisma.assessment.create({
     },
   });
 }
+
+async publishForTeacher(
+  teacherUserId: string,
+  assessmentId: string,
+) {
+  // --------------------------------------------------
+  // Step 1:
+  // Find the assessment that belongs to the logged-in
+  // teacher.
+  //
+  // We search using BOTH:
+  // - Public assessment ID
+  // - Teacher ID from JWT
+  //
+  // This prevents one teacher from publishing another
+  // teacher's assessment.
+  // --------------------------------------------------
+  const assessment =
+    await this.prisma.assessment.findFirst({
+      where: {
+        assessmentId,
+        teacherId: teacherUserId,
+      },
+    });
+
+  // --------------------------------------------------
+  // Step 2:
+  // Assessment not found.
+  //
+  // Covers two cases:
+  // 1. Assessment doesn't exist.
+  // 2. Assessment belongs to another teacher.
+  // --------------------------------------------------
+  if (!assessment) {
+    throw new NotFoundException(
+      'Assessment not found',
+    );
+  }
+
+  // --------------------------------------------------
+  // Step 3:
+  // Only draft assessments can be published.
+  //
+  // Already published assessments should not be
+  // published again.
+  // --------------------------------------------------
+  if (
+    assessment.status !==
+    AssessmentStatus.DRAFT
+  ) {
+    throw new ConflictException(
+      'Only draft assessments can be published',
+    );
+  }
+
+  // --------------------------------------------------
+  // Step 4:
+  // Duration is mandatory before publishing.
+  //
+  // Students cannot attempt an assessment without
+  // knowing how much time they have.
+  // --------------------------------------------------
+  if (
+    !assessment.durationMinutes ||
+    assessment.durationMinutes <= 0
+  ) {
+    throw new BadRequestException(
+      'Assessment duration is required',
+    );
+  }
+
+  // --------------------------------------------------
+  // Step 5:
+  // Both start and end times must exist.
+  //
+  // The schedule determines when students are allowed
+  // to access the assessment.
+  // --------------------------------------------------
+  if (
+    !assessment.startAt ||
+    !assessment.endAt
+  ) {
+    throw new BadRequestException(
+      'Assessment schedule is required',
+    );
+  }
+
+  // --------------------------------------------------
+  // Step 6:
+  // End time must be later than start time.
+  //
+  // Prevent invalid schedules.
+  // --------------------------------------------------
+  if (
+    assessment.endAt <= assessment.startAt
+  ) {
+    throw new BadRequestException(
+      'End time must be later than start time',
+    );
+  }
+
+  // --------------------------------------------------
+  // Step 7:
+  // Everything is valid.
+  //
+  // Publish the assessment by changing only
+  // the status.
+  // --------------------------------------------------
+  return this.prisma.assessment.update({
+    where: {
+      id: assessment.id,
+    },
+    data: {
+      status:
+        AssessmentStatus.PUBLISHED,
+    },
+    select: {
+      assessmentId: true,
+      title: true,
+      description: true,
+      board: true,
+      grade: true,
+      subject: true,
+      durationMinutes: true,
+      instructions: true,
+      maximumMarks: true,
+      startAt: true,
+      endAt: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+}
 }

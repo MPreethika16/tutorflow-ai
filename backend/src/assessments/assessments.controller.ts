@@ -71,4 +71,15 @@ export class AssessmentsController {
       dto,
     );
   }
+
+  @Post(':assessmentId/publish')
+publishAssessment(
+  @CurrentUser() user: JwtPayload,
+  @Param('assessmentId') assessmentId: string,
+) {
+  return this.assessmentsService.publishForTeacher(
+    user.sub,
+    assessmentId,
+  );
+}
 }

@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Post,
+  Patch,
   UseGuards,
 } from '@nestjs/common';
 
@@ -16,7 +17,7 @@ import { UserRole } from '../generated/prisma/client';
 
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { QuestionsService } from './questions.service';
-
+import { UpdateQuestionDto } from './dto/update-question.dto';
 @Controller('assessments/:assessmentId/questions')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.TEACHER)
@@ -56,4 +57,22 @@ export class QuestionsController {
       assessmentId,
     );
   }
+
+  /**
+ * Updates one question inside an owned draft assessment.
+ */
+@Patch(':questionId')
+updateQuestion(
+  @CurrentUser() user: JwtPayload,
+  @Param('assessmentId') assessmentId: string,
+  @Param('questionId') questionId: string,
+  @Body() dto: UpdateQuestionDto,
+) {
+  return this.questionsService.updateForTeacher(
+    user.sub,
+    assessmentId,
+    questionId,
+    dto,
+  );
+}
 }

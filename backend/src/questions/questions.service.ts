@@ -15,6 +15,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { generateQuestionId } from './utils/question.util';
 
+import { UpdateQuestionDto } from './dto/update-question.dto';
 @Injectable()
 export class QuestionsService {
   constructor(
@@ -407,5 +408,319 @@ export class QuestionsService {
     },
     questions,
   };
+}
+
+async updateForTeacher(
+  teacherUserId: string,
+  assessmentId: string,
+  questionId: string,
+  dto: UpdateQuestionDto,
+) {
+  // Step 1:
+  // Find the assessment using its public ID and the
+  // logged-in teacher's ID.
+  //
+  // This performs the ownership check.
+  const assessment =
+    await this.prisma.assessment.findFirst({
+      where: {
+        assessmentId,
+        teacherId: teacherUserId,
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+
+  // Covers:
+  // - assessment does not exist
+  // - assessment belongs to another teacher
+  if (!assessment) {
+    throw new NotFoundException(
+      'Assessment not found',
+    );
+  }
+
+  // Step 2:
+  // Questions may be changed only while the parent
+  // assessment is still a draft.
+  if (assessment.status !== AssessmentStatus.DRAFT) {
+    throw new ConflictException(
+      'Questions can be updated only in draft assessments',
+    );
+  }
+
+  // Step 3:
+  // Find the question using:
+  // - public question ID
+  // - internal parent assessment UUID
+  //
+  // This ensures the question really belongs to the
+  // assessment from the route.
+  const question =
+    await this.prisma.question.findFirst({
+      where: {
+        questionId,
+        assessmentId: assessment.id,
+      },
+      select: {
+        id: true,
+        questionId: true,
+        type: true,
+        prompt: true,
+        marks: true,
+        order: true,
+        options: true,
+        correctOption: true,
+        explanation: true,
+        modelAnswer: true,
+        gradingInstructions: true,
+      },
+    });
+
+  if (!question) {
+    throw new NotFoundException(
+      'Question not found',
+    );
+  }
+
+  // Step 4:
+  // Combine the existing values with the fields supplied
+  // by the PATCH request.
+  //
+  // Omitted fields keep their current values.
+  const updatedPrompt =
+    dto.prompt === undefined
+      ? question.prompt
+      : dto.prompt.trim();
+
+  const updatedMarks =
+    dto.marks ?? question.marks;
+
+  // Step 5:
+  // Validate the merged data according to the question's
+  // existing type.
+  if (question.type === QuestionType.MCQ) {
+    this.validateMcqUpdate(question, dto);
+  } else {
+    this.validateWrittenOrVoiceUpdate(question, dto);
+  }
+
+  // Step 6:
+  // Update the question and recalculate the assessment's
+  // maximum marks inside one transaction.
+  //
+  // If one operation fails, both are rolled back.
+  return this.prisma.$transaction(async (tx) => {
+    const updatedQuestion =
+      await tx.question.update({
+        where: {
+          id: question.id,
+        },
+        data:
+          question.type === QuestionType.MCQ
+            ? {
+                prompt: updatedPrompt,
+                marks: updatedMarks,
+
+                options:
+                  dto.options === undefined
+                    ? undefined
+                    : (dto.options.map((option) => ({
+                        id: option.id
+                          .trim()
+                          .toUpperCase(),
+                        text: option.text.trim(),
+                      })) as Prisma.InputJsonValue),
+
+                correctOption:
+                  dto.correctOption === undefined
+                    ? undefined
+                    : dto.correctOption
+                        .trim()
+                        .toUpperCase(),
+
+                explanation:
+                  dto.explanation === undefined
+                    ? undefined
+                    : dto.explanation.trim(),
+              }
+            : {
+                prompt: updatedPrompt,
+                marks: updatedMarks,
+
+                modelAnswer:
+                  dto.modelAnswer === undefined
+                    ? undefined
+                    : dto.modelAnswer.trim(),
+
+                gradingInstructions:
+                  dto.gradingInstructions === undefined
+                    ? undefined
+                    : dto.gradingInstructions.trim(),
+              },
+
+        select: {
+          questionId: true,
+          type: true,
+          prompt: true,
+          marks: true,
+          order: true,
+          options: true,
+          correctOption: true,
+          explanation: true,
+          modelAnswer: true,
+          gradingInstructions: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+    // Recalculate the total marks after the question update.
+    const marksResult =
+      await tx.question.aggregate({
+        where: {
+          assessmentId: assessment.id,
+        },
+        _sum: {
+          marks: true,
+        },
+      });
+
+    const maximumMarks =
+      marksResult._sum.marks ?? 0;
+
+    await tx.assessment.update({
+      where: {
+        id: assessment.id,
+      },
+      data: {
+        maximumMarks,
+      },
+    });
+
+    return {
+      question: updatedQuestion,
+      assessment: {
+        assessmentId,
+        maximumMarks,
+      },
+    };
+  });
+}
+
+private validateMcqUpdate(
+  existingQuestion: {
+    options: Prisma.JsonValue;
+    correctOption: string | null;
+  },
+  dto: UpdateQuestionDto,
+): void {
+  // MCQs cannot receive fields belonging to TYPED
+  // or VOICE questions.
+  if (
+    dto.modelAnswer !== undefined ||
+    dto.gradingInstructions !== undefined
+  ) {
+    throw new BadRequestException(
+      'MCQ questions cannot contain modelAnswer or gradingInstructions',
+    );
+  }
+
+  // Use new options when supplied.
+  // Otherwise use the options already stored in the database.
+  const existingOptions =
+    existingQuestion.options as
+      | Array<{ id: string; text: string }>
+      | null;
+
+  const options = dto.options ?? existingOptions;
+
+  if (!options || options.length !== 4) {
+    throw new BadRequestException(
+      'MCQ questions must contain exactly four options',
+    );
+  }
+
+  const normalizedOptionIds = options.map(
+    (option) => option.id.trim().toUpperCase(),
+  );
+
+  // Ensure IDs such as A, B, C and D are unique.
+  if (
+    new Set(normalizedOptionIds).size !==
+    normalizedOptionIds.length
+  ) {
+    throw new BadRequestException(
+      'MCQ option IDs must be unique',
+    );
+  }
+
+  const normalizedOptionTexts = options.map(
+    (option) => option.text.trim().toLowerCase(),
+  );
+
+  // Treat values such as "Delhi" and " delhi "
+  // as duplicate option text.
+  if (
+    new Set(normalizedOptionTexts).size !==
+    normalizedOptionTexts.length
+  ) {
+    throw new BadRequestException(
+      'MCQ option text must be unique',
+    );
+  }
+
+  const correctOption =
+    dto.correctOption === undefined
+      ? existingQuestion.correctOption
+      : dto.correctOption.trim().toUpperCase();
+
+  if (!correctOption) {
+    throw new BadRequestException(
+      'correctOption is required for MCQ questions',
+    );
+  }
+
+  // Important:
+  // If options are changed, the existing correct option
+  // must still exist among the new option IDs.
+  if (!normalizedOptionIds.includes(correctOption)) {
+    throw new BadRequestException(
+      'correctOption must match one of the option IDs',
+    );
+  }
+}
+
+private validateWrittenOrVoiceUpdate(
+  existingQuestion: {
+    modelAnswer: string | null;
+  },
+  dto: UpdateQuestionDto,
+): void {
+  // TYPED and VOICE questions cannot receive MCQ fields.
+  if (
+    dto.options !== undefined ||
+    dto.correctOption !== undefined ||
+    dto.explanation !== undefined
+  ) {
+    throw new BadRequestException(
+      'Typed and voice questions cannot contain MCQ fields',
+    );
+  }
+
+  // Use the new model answer when supplied.
+  // Otherwise retain the stored model answer.
+  const modelAnswer =
+    dto.modelAnswer === undefined
+      ? existingQuestion.modelAnswer
+      : dto.modelAnswer.trim();
+
+  if (!modelAnswer) {
+    throw new BadRequestException(
+      'modelAnswer is required for typed and voice questions',
+    );
+  }
 }
 }

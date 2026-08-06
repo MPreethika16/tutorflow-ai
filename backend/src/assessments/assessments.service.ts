@@ -662,4 +662,80 @@ async publishForTeacher(
     },
   });
 }
+
+async archiveForTeacher(
+  teacherUserId: string,
+  assessmentId: string,
+) {
+  // Step 1:
+  // Find an assessment owned by the logged-in teacher.
+  //
+  // Using assessmentId + teacherId prevents one teacher
+  // from archiving another teacher's assessment.
+  const assessment =
+    await this.prisma.assessment.findFirst({
+      where: {
+        assessmentId,
+        teacherId: teacherUserId,
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+
+  // Step 2:
+  // Return 404 for both cases:
+  // - the assessment does not exist
+  // - the assessment belongs to another teacher
+  if (!assessment) {
+    throw new NotFoundException(
+      'Assessment not found',
+    );
+  }
+
+  // Step 3:
+  // Only CLOSED assessments can be archived.
+  //
+  // Valid transition:
+  // CLOSED -> ARCHIVED
+  if (
+    assessment.status !==
+    AssessmentStatus.CLOSED
+  ) {
+    throw new ConflictException(
+      'Only closed assessments can be archived',
+    );
+  }
+
+  // Step 4:
+  // Update only the workflow status.
+  //
+  // The assessment remains in the database as
+  // read-only historical data.
+  return this.prisma.assessment.update({
+    where: {
+      id: assessment.id,
+    },
+    data: {
+      status: AssessmentStatus.ARCHIVED,
+    },
+    select: {
+      assessmentId: true,
+      title: true,
+      description: true,
+      board: true,
+      grade: true,
+      subject: true,
+      durationMinutes: true,
+      instructions: true,
+      maximumMarks: true,
+      startAt: true,
+      endAt: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+}
 }

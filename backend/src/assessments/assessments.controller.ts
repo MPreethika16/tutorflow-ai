@@ -93,4 +93,15 @@ closeAssessment(
     assessmentId,
   );
 }
+
+@Post(':assessmentId/archive')
+archiveAssessment(
+  @CurrentUser() user: JwtPayload,
+  @Param('assessmentId') assessmentId: string,
+) {
+  return this.assessmentsService.archiveForTeacher(
+    user.sub,
+    assessmentId,
+  );
+}
 }

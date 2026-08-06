@@ -82,4 +82,15 @@ publishAssessment(
     assessmentId,
   );
 }
+
+@Post(':assessmentId/close')
+closeAssessment(
+  @CurrentUser() user: JwtPayload,
+  @Param('assessmentId') assessmentId: string,
+) {
+  return this.assessmentsService.closeForTeacher(
+    user.sub,
+    assessmentId,
+  );
+}
 }

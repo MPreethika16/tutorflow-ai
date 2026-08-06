@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   Post,
   UseGuards,
@@ -26,10 +27,6 @@ export class QuestionsController {
 
   /**
    * Creates a question inside an owned draft assessment.
-   *
-   * teacherUserId comes from JWT.
-   * assessmentId comes from the URL.
-   * question data comes from the validated body.
    */
   @Post()
   createQuestion(
@@ -41,6 +38,22 @@ export class QuestionsController {
       user.sub,
       assessmentId,
       dto,
+    );
+  }
+
+  /**
+   * Lists every question belonging to an owned assessment.
+   *
+   * Questions are returned according to their saved order.
+   */
+  @Get()
+  listQuestions(
+    @CurrentUser() user: JwtPayload,
+    @Param('assessmentId') assessmentId: string,
+  ) {
+    return this.questionsService.findAllForTeacher(
+      user.sub,
+      assessmentId,
     );
   }
 }

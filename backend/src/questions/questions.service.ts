@@ -318,4 +318,94 @@ export class QuestionsService {
       );
     }
   }
+
+
+  async findAllForTeacher(
+  teacherUserId: string,
+  assessmentId: string,
+) {
+  // Step 1:
+  // Find the assessment using both:
+  // - public assessment ID from the route
+  // - teacher UUID from the JWT
+  //
+  // This is the ownership check.
+  const assessment =
+    await this.prisma.assessment.findFirst({
+      where: {
+        assessmentId,
+        teacherId: teacherUserId,
+      },
+      select: {
+        id: true,
+        assessmentId: true,
+        title: true,
+        status: true,
+        maximumMarks: true,
+      },
+    });
+
+  // Step 2:
+  // Return the same 404 response when:
+  // - the assessment does not exist
+  // - the assessment belongs to another teacher
+  //
+  // This avoids exposing another teacher's data.
+  if (!assessment) {
+    throw new NotFoundException(
+      'Assessment not found',
+    );
+  }
+
+  // Step 3:
+  // Fetch all questions that belong to the assessment.
+  //
+  // We use the internal assessment UUID because
+  // Question.assessmentId references Assessment.id.
+  const questions =
+    await this.prisma.question.findMany({
+      where: {
+        assessmentId: assessment.id,
+      },
+
+      // Questions must be returned in the same sequence
+      // in which students will see them.
+      orderBy: {
+        order: 'asc',
+      },
+
+      select: {
+        questionId: true,
+        type: true,
+        prompt: true,
+        marks: true,
+        order: true,
+
+        // Teacher-only answer and grading fields.
+        options: true,
+        correctOption: true,
+        explanation: true,
+        modelAnswer: true,
+        gradingInstructions: true,
+
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+  // Step 4:
+  // Return assessment context together with its questions.
+  //
+  // This helps the frontend display the title,
+  // current status and total marks without another request.
+  return {
+    assessment: {
+      assessmentId: assessment.assessmentId,
+      title: assessment.title,
+      status: assessment.status,
+      maximumMarks: assessment.maximumMarks,
+    },
+    questions,
+  };
+}
 }

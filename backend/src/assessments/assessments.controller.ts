@@ -48,6 +48,17 @@ export class AssessmentsController {
     );
   }
 
+
+  @Get('stats')
+getAssessmentStatistics(
+  @CurrentUser() user: JwtPayload,
+) {
+  return this.assessmentsService.getStatisticsForTeacher(
+    user.sub,
+  );
+}
+
+
   @Get(':assessmentId')
   getAssessment(
     @CurrentUser() user: JwtPayload,
@@ -104,4 +115,6 @@ archiveAssessment(
     assessmentId,
   );
 }
+
+
 }

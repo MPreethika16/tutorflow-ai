@@ -738,4 +738,66 @@ async archiveForTeacher(
     },
   });
 }
+
+async getStatisticsForTeacher(
+  teacherUserId: string,
+) {
+  // All statistics are restricted to the
+  // logged-in teacher.
+
+  const [
+    totalAssessments,
+    draftAssessments,
+    publishedAssessments,
+    closedAssessments,
+    archivedAssessments,
+  ] = await this.prisma.$transaction([
+    // Total assessments
+    this.prisma.assessment.count({
+      where: {
+        teacherId: teacherUserId,
+      },
+    }),
+
+    // Draft
+    this.prisma.assessment.count({
+      where: {
+        teacherId: teacherUserId,
+        status: AssessmentStatus.DRAFT,
+      },
+    }),
+
+    // Published
+    this.prisma.assessment.count({
+      where: {
+        teacherId: teacherUserId,
+        status: AssessmentStatus.PUBLISHED,
+      },
+    }),
+
+    // Closed
+    this.prisma.assessment.count({
+      where: {
+        teacherId: teacherUserId,
+        status: AssessmentStatus.CLOSED,
+      },
+    }),
+
+    // Archived
+    this.prisma.assessment.count({
+      where: {
+        teacherId: teacherUserId,
+        status: AssessmentStatus.ARCHIVED,
+      },
+    }),
+  ]);
+
+  return {
+    totalAssessments,
+    draftAssessments,
+    publishedAssessments,
+    closedAssessments,
+    archivedAssessments,
+  };
+}
 }

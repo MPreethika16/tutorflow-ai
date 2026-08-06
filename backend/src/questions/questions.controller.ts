@@ -75,4 +75,17 @@ updateQuestion(
     dto,
   );
 }
+
+@Get(':questionId')
+getQuestion(
+  @CurrentUser() user: JwtPayload,
+  @Param('assessmentId') assessmentId: string,
+  @Param('questionId') questionId: string,
+) {
+  return this.questionsService.findOneForTeacher(
+    user.sub,
+    assessmentId,
+    questionId,
+  );
+}
 }

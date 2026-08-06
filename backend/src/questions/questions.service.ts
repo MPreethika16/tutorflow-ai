@@ -723,4 +723,83 @@ private validateWrittenOrVoiceUpdate(
     );
   }
 }
+
+async findOneForTeacher(
+  teacherUserId: string,
+  assessmentId: string,
+  questionId: string,
+) {
+  // Step 1:
+  // Find the owned assessment using the public assessment ID
+  // and the teacher UUID from the JWT.
+  const assessment =
+    await this.prisma.assessment.findFirst({
+      where: {
+        assessmentId,
+        teacherId: teacherUserId,
+      },
+      select: {
+        id: true,
+        assessmentId: true,
+        title: true,
+        status: true,
+        maximumMarks: true,
+      },
+    });
+
+  // Return the same 404 when the assessment is missing
+  // or owned by another teacher.
+  if (!assessment) {
+    throw new NotFoundException(
+      'Assessment not found',
+    );
+  }
+
+  // Step 2:
+  // Find the question using both:
+  // - its public question ID
+  // - the internal UUID of the parent assessment
+  //
+  // This prevents a question from another assessment
+  // being accessed through this route.
+  const question =
+    await this.prisma.question.findFirst({
+      where: {
+        questionId,
+        assessmentId: assessment.id,
+      },
+      select: {
+        questionId: true,
+        type: true,
+        prompt: true,
+        marks: true,
+        order: true,
+        options: true,
+        correctOption: true,
+        explanation: true,
+        modelAnswer: true,
+        gradingInstructions: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+  if (!question) {
+    throw new NotFoundException(
+      'Question not found',
+    );
+  }
+
+  // Return assessment context together with the full
+  // teacher-only question details.
+  return {
+    assessment: {
+      assessmentId: assessment.assessmentId,
+      title: assessment.title,
+      status: assessment.status,
+      maximumMarks: assessment.maximumMarks,
+    },
+    question,
+  };
+}
 }

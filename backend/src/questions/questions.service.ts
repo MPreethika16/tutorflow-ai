@@ -430,60 +430,22 @@ export class QuestionsService {
     questionId: string,
     dto: UpdateQuestionDto,
   ) {
-    // Step 1: Verify assessment ownership.
+    // Fast ownership/status check before opening the transaction.
     const assessment = await this.findOwnedAssessment(
       teacherUserId,
       assessmentId,
     );
 
-    // Fast-fail before opening a transaction.
     if (assessment.status !== AssessmentStatus.DRAFT) {
       throw new ConflictException(
         'Questions can be updated only in draft assessments',
       );
     }
 
-    // Load the current question so PATCH fields can be merged and validated
-    // against the question's existing type.
-    const question = await this.prisma.question.findFirst({
-      where: {
-        questionId,
-        assessmentId: assessment.id,
-      },
-      select: {
-        id: true,
-        questionId: true,
-        type: true,
-        prompt: true,
-        marks: true,
-        order: true,
-        options: true,
-        correctOption: true,
-        explanation: true,
-        modelAnswer: true,
-        gradingInstructions: true,
-      },
-    });
-
-    if (!question) {
-      throw new NotFoundException('Question not found');
-    }
-
-    // Null and undefined both mean "preserve the existing value".
-    const updatedPrompt =
-      dto.prompt == null ? question.prompt : dto.prompt.trim();
-
-    const updatedMarks = dto.marks ?? question.marks;
-
-    if (question.type === QuestionType.MCQ) {
-      this.validateMcqUpdate(question, dto);
-    } else {
-      this.validateWrittenOrVoiceUpdate(question, dto);
-    }
-
+    // The authoritative question read, merge, validation and write all use
+    // the same SERIALIZABLE transaction snapshot.
     return this.runSerializableTransaction(async (tx) => {
-      // Authoritative status check: publishing could have happened after
-      // the initial DRAFT check.
+      // Re-check that the assessment is still editable.
       const draftAssessment = await tx.assessment.findFirst({
         where: {
           id: assessment.id,
@@ -499,6 +461,45 @@ export class QuestionsService {
         throw new ConflictException(
           'Questions can be updated only in draft assessments',
         );
+      }
+
+      // Re-read the question inside the transaction so validation and the
+      // update are based on the same snapshot.
+      const question = await tx.question.findFirst({
+        where: {
+          questionId,
+          assessmentId: assessment.id,
+        },
+        select: {
+          id: true,
+          questionId: true,
+          type: true,
+          prompt: true,
+          marks: true,
+          order: true,
+          options: true,
+          correctOption: true,
+          explanation: true,
+          modelAnswer: true,
+          gradingInstructions: true,
+        },
+      });
+
+      if (!question) {
+        throw new NotFoundException('Question not found');
+      }
+
+      // Null and undefined both mean "preserve the existing value".
+      const updatedPrompt =
+        dto.prompt == null ? question.prompt : dto.prompt.trim();
+
+      const updatedMarks = dto.marks ?? question.marks;
+
+      // Type-specific validation now uses the transaction-local question.
+      if (question.type === QuestionType.MCQ) {
+        this.validateMcqUpdate(question, dto);
+      } else {
+        this.validateWrittenOrVoiceUpdate(question, dto);
       }
 
       const updatedQuestion = await tx.question.update({

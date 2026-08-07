@@ -6,6 +6,9 @@ import type { JwtPayload } from '../auth/types/jwt-payload.type';
 import { QuestionType } from '../generated/prisma/client';
 
 import { QuestionsController } from './questions.controller';
+import type { CreateQuestionDto } from './dto/create-question.dto';
+import type { ReorderQuestionsDto } from './dto/reorder-questions.dto';
+import type { UpdateQuestionDto } from './dto/update-question.dto';
 import { QuestionsService } from './questions.service';
 
 describe('QuestionsController', () => {
@@ -37,24 +40,19 @@ describe('QuestionsController', () => {
           },
         ],
       })
-        // We are testing the controller itself,
-        // not JWT authentication.
         .overrideGuard(JwtAuthGuard)
         .useValue({
           canActivate: jest.fn(() => true),
         })
-
-        // We are also not testing role authorization here.
         .overrideGuard(RolesGuard)
         .useValue({
           canActivate: jest.fn(() => true),
         })
         .compile();
 
-    controller =
-      module.get<QuestionsController>(
-        QuestionsController,
-      );
+    controller = module.get<QuestionsController>(
+      QuestionsController,
+    );
   });
 
   it('should be defined', () => {
@@ -62,27 +60,15 @@ describe('QuestionsController', () => {
   });
 
   it('delegates createQuestion to QuestionsService', async () => {
-    const dto = {
+    const dto: CreateQuestionDto = {
       type: QuestionType.MCQ,
       prompt: 'What is the capital of India?',
       marks: 2,
       options: [
-        {
-          id: 'A',
-          text: 'Delhi',
-        },
-        {
-          id: 'B',
-          text: 'Mumbai',
-        },
-        {
-          id: 'C',
-          text: 'Chennai',
-        },
-        {
-          id: 'D',
-          text: 'Kolkata',
-        },
+        { id: 'A', text: 'Delhi' },
+        { id: 'B', text: 'Mumbai' },
+        { id: 'C', text: 'Chennai' },
+        { id: 'D', text: 'Kolkata' },
       ],
       correctOption: 'A',
     };
@@ -93,16 +79,10 @@ describe('QuestionsController', () => {
       },
     };
 
-    questionsService.createForTeacher.mockResolvedValue(
-      result,
-    );
+    questionsService.createForTeacher.mockResolvedValue(result);
 
     await expect(
-      controller.createQuestion(
-        user,
-        'ASM-123',
-        dto,
-      ),
+      controller.createQuestion(user, 'ASM-123', dto),
     ).resolves.toEqual(result);
 
     expect(
@@ -119,15 +99,10 @@ describe('QuestionsController', () => {
       questions: [],
     };
 
-    questionsService.findAllForTeacher.mockResolvedValue(
-      result,
-    );
+    questionsService.findAllForTeacher.mockResolvedValue(result);
 
     await expect(
-      controller.listQuestions(
-        user,
-        'ASM-123',
-      ),
+      controller.listQuestions(user, 'ASM-123'),
     ).resolves.toEqual(result);
 
     expect(
@@ -145,16 +120,10 @@ describe('QuestionsController', () => {
       },
     };
 
-    questionsService.findOneForTeacher.mockResolvedValue(
-      result,
-    );
+    questionsService.findOneForTeacher.mockResolvedValue(result);
 
     await expect(
-      controller.getQuestion(
-        user,
-        'ASM-123',
-        'QUE-123',
-      ),
+      controller.getQuestion(user, 'ASM-123', 'QUE-123'),
     ).resolves.toEqual(result);
 
     expect(
@@ -167,7 +136,7 @@ describe('QuestionsController', () => {
   });
 
   it('delegates updateQuestion to QuestionsService', async () => {
-    const dto = {
+    const dto: UpdateQuestionDto = {
       prompt: 'Updated question prompt',
     };
 
@@ -178,9 +147,7 @@ describe('QuestionsController', () => {
       },
     };
 
-    questionsService.updateForTeacher.mockResolvedValue(
-      result,
-    );
+    questionsService.updateForTeacher.mockResolvedValue(result);
 
     await expect(
       controller.updateQuestion(
@@ -206,9 +173,7 @@ describe('QuestionsController', () => {
       message: 'Question deleted successfully',
     };
 
-    questionsService.deleteForTeacher.mockResolvedValue(
-      result,
-    );
+    questionsService.deleteForTeacher.mockResolvedValue(result);
 
     await expect(
       controller.deleteQuestion(
@@ -228,7 +193,7 @@ describe('QuestionsController', () => {
   });
 
   it('delegates reorderQuestions to QuestionsService', async () => {
-    const dto = {
+    const dto: ReorderQuestionsDto = {
       questions: [
         {
           questionId: 'QUE-123',
@@ -238,8 +203,7 @@ describe('QuestionsController', () => {
     };
 
     const result = {
-      message:
-        'Questions reordered successfully',
+      message: 'Questions reordered successfully',
       questions: [
         {
           questionId: 'QUE-123',
@@ -248,9 +212,7 @@ describe('QuestionsController', () => {
       ],
     };
 
-    questionsService.reorderForTeacher.mockResolvedValue(
-      result,
-    );
+    questionsService.reorderForTeacher.mockResolvedValue(result);
 
     await expect(
       controller.reorderQuestions(

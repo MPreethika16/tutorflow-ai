@@ -26,6 +26,12 @@ enum AssessmentStatus {
   ARCHIVED
 }
 
+enum QuestionType {
+  MCQ
+  TYPED
+  VOICE
+}
+
 model User {
   id           String     @id @default(uuid()) @db.Uuid
   firstName    String     @db.VarChar(100)
@@ -96,9 +102,33 @@ model Assessment {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
-  teacher Teacher @relation(fields: [teacherId], references: [userId], onDelete: Restrict)
+  teacher   Teacher    @relation(fields: [teacherId], references: [userId], onDelete: Restrict)
+  questions Question[]
 
   @@index([teacherId])
   @@index([teacherId, status])
   @@index([board, grade, subject])
+}
+
+model Question {
+  id                  String       @id @default(uuid()) @db.Uuid
+  questionId          String       @unique
+  assessmentId        String       @db.Uuid
+  type                QuestionType
+  prompt              String
+  marks               Int
+  order               Int
+  options             Json?
+  correctOption       String?
+  explanation         String?
+  modelAnswer         String?
+  gradingInstructions String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, order])
+  @@index([assessmentId])
+  @@index([assessmentId, type])
 }

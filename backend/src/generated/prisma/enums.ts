@@ -34,3 +34,12 @@ export const AssessmentStatus = {
 } as const
 
 export type AssessmentStatus = (typeof AssessmentStatus)[keyof typeof AssessmentStatus]
+
+
+export const QuestionType = {
+  MCQ: 'MCQ',
+  TYPED: 'TYPED',
+  VOICE: 'VOICE'
+} as const
+
+export type QuestionType = (typeof QuestionType)[keyof typeof QuestionType]

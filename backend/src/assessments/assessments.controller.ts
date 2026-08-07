@@ -83,7 +83,7 @@ getAssessmentStatistics(
     );
   }
 
-  @Post(':assessmentId/publish')
+ @Post(':assessmentId/publish')
 publishAssessment(
   @CurrentUser() user: JwtPayload,
   @Param('assessmentId') assessmentId: string,

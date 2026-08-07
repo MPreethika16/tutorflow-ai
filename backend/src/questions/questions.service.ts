@@ -16,11 +16,10 @@ import { CreateQuestionDto } from './dto/create-question.dto';
 import { generateQuestionId } from './utils/question.util';
 
 import { UpdateQuestionDto } from './dto/update-question.dto';
+import { ReorderQuestionsDto } from './dto/reorder-questions.dto';
 @Injectable()
 export class QuestionsService {
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async createForTeacher(
     teacherUserId: string,
@@ -32,25 +31,22 @@ export class QuestionsService {
     // the logged-in teacher's ID.
     //
     // This performs the ownership check.
-    const assessment =
-      await this.prisma.assessment.findFirst({
-        where: {
-          assessmentId,
-          teacherId: teacherUserId,
-        },
-        select: {
-          id: true,
-          status: true,
-        },
-      });
+    const assessment = await this.prisma.assessment.findFirst({
+      where: {
+        assessmentId,
+        teacherId: teacherUserId,
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
 
     // Covers both cases:
     // - assessment does not exist
     // - assessment belongs to another teacher
     if (!assessment) {
-      throw new NotFoundException(
-        'Assessment not found',
-      );
+      throw new NotFoundException('Assessment not found');
     }
 
     // Step 2:
@@ -91,8 +87,7 @@ export class QuestionsService {
 
       // No existing questions:
       // null + fallback gives the first order as 1.
-      const nextOrder =
-        (orderResult._max.order ?? 0) + 1;
+      const nextOrder = (orderResult._max.order ?? 0) + 1;
 
       // Create the question.
       const createdQuestion = await tx.question.create({
@@ -119,14 +114,12 @@ export class QuestionsService {
               : null,
 
           explanation:
-            dto.type === QuestionType.MCQ &&
-            dto.explanation !== undefined
+            dto.type === QuestionType.MCQ && dto.explanation !== undefined
               ? dto.explanation.trim()
               : null,
 
           modelAnswer:
-            dto.type === QuestionType.TYPED ||
-            dto.type === QuestionType.VOICE
+            dto.type === QuestionType.TYPED || dto.type === QuestionType.VOICE
               ? dto.modelAnswer!.trim()
               : null,
 
@@ -167,8 +160,7 @@ export class QuestionsService {
         },
       });
 
-      const maximumMarks =
-        marksResult._sum.marks ?? 0;
+      const maximumMarks = marksResult._sum.marks ?? 0;
 
       await tx.assessment.update({
         where: {
@@ -197,25 +189,18 @@ export class QuestionsService {
    * DTO validation checks basic data shape.
    * This method checks business meaning.
    */
-  private validateQuestionByType(
-    dto: CreateQuestionDto,
-  ): void {
+  private validateQuestionByType(dto: CreateQuestionDto): void {
     if (dto.type === QuestionType.MCQ) {
       this.validateMcq(dto);
       return;
     }
 
-    if (
-      dto.type === QuestionType.TYPED ||
-      dto.type === QuestionType.VOICE
-    ) {
+    if (dto.type === QuestionType.TYPED || dto.type === QuestionType.VOICE) {
       this.validateWrittenOrVoiceQuestion(dto);
     }
   }
 
-  private validateMcq(
-    dto: CreateQuestionDto,
-  ): void {
+  private validateMcq(dto: CreateQuestionDto): void {
     // MCQs require exactly four options.
     if (!dto.options || dto.options.length !== 4) {
       throw new BadRequestException(
@@ -232,55 +217,34 @@ export class QuestionsService {
 
     // Normalize IDs so values such as "a" and " A "
     // are treated as the same ID.
-    const normalizedOptionIds = dto.options.map(
-      (option) =>
-        option.id.trim().toUpperCase(),
+    const normalizedOptionIds = dto.options.map((option) =>
+      option.id.trim().toUpperCase(),
     );
 
     // All option IDs must be unique.
-    const uniqueOptionIds = new Set(
-      normalizedOptionIds,
-    );
+    const uniqueOptionIds = new Set(normalizedOptionIds);
 
-    if (
-      uniqueOptionIds.size !==
-      normalizedOptionIds.length
-    ) {
-      throw new BadRequestException(
-        'MCQ option IDs must be unique',
-      );
+    if (uniqueOptionIds.size !== normalizedOptionIds.length) {
+      throw new BadRequestException('MCQ option IDs must be unique');
     }
 
     // Normalize text before duplicate checking.
     //
     // "Delhi" and " delhi " are treated as duplicates.
-    const normalizedOptionTexts = dto.options.map(
-      (option) =>
-        option.text.trim().toLowerCase(),
+    const normalizedOptionTexts = dto.options.map((option) =>
+      option.text.trim().toLowerCase(),
     );
 
-    const uniqueOptionTexts = new Set(
-      normalizedOptionTexts,
-    );
+    const uniqueOptionTexts = new Set(normalizedOptionTexts);
 
-    if (
-      uniqueOptionTexts.size !==
-      normalizedOptionTexts.length
-    ) {
-      throw new BadRequestException(
-        'MCQ option text must be unique',
-      );
+    if (uniqueOptionTexts.size !== normalizedOptionTexts.length) {
+      throw new BadRequestException('MCQ option text must be unique');
     }
 
-    const normalizedCorrectOption =
-      dto.correctOption.trim().toUpperCase();
+    const normalizedCorrectOption = dto.correctOption.trim().toUpperCase();
 
     // The correct option must reference an actual option.
-    if (
-      !uniqueOptionIds.has(
-        normalizedCorrectOption,
-      )
-    ) {
+    if (!uniqueOptionIds.has(normalizedCorrectOption)) {
       throw new BadRequestException(
         'correctOption must match one of the option IDs',
       );
@@ -297,9 +261,7 @@ export class QuestionsService {
     }
   }
 
-  private validateWrittenOrVoiceQuestion(
-    dto: CreateQuestionDto,
-  ): void {
+  private validateWrittenOrVoiceQuestion(dto: CreateQuestionDto): void {
     // Typed and voice questions require a teacher-reviewed
     // model answer for later AI-assisted grading.
     if (!dto.modelAnswer?.trim()) {
@@ -320,19 +282,14 @@ export class QuestionsService {
     }
   }
 
-
-  async findAllForTeacher(
-  teacherUserId: string,
-  assessmentId: string,
-) {
-  // Step 1:
-  // Find the assessment using both:
-  // - public assessment ID from the route
-  // - teacher UUID from the JWT
-  //
-  // This is the ownership check.
-  const assessment =
-    await this.prisma.assessment.findFirst({
+  async findAllForTeacher(teacherUserId: string, assessmentId: string) {
+    // Step 1:
+    // Find the assessment using both:
+    // - public assessment ID from the route
+    // - teacher UUID from the JWT
+    //
+    // This is the ownership check.
+    const assessment = await this.prisma.assessment.findFirst({
       where: {
         assessmentId,
         teacherId: teacherUserId,
@@ -346,25 +303,22 @@ export class QuestionsService {
       },
     });
 
-  // Step 2:
-  // Return the same 404 response when:
-  // - the assessment does not exist
-  // - the assessment belongs to another teacher
-  //
-  // This avoids exposing another teacher's data.
-  if (!assessment) {
-    throw new NotFoundException(
-      'Assessment not found',
-    );
-  }
+    // Step 2:
+    // Return the same 404 response when:
+    // - the assessment does not exist
+    // - the assessment belongs to another teacher
+    //
+    // This avoids exposing another teacher's data.
+    if (!assessment) {
+      throw new NotFoundException('Assessment not found');
+    }
 
-  // Step 3:
-  // Fetch all questions that belong to the assessment.
-  //
-  // We use the internal assessment UUID because
-  // Question.assessmentId references Assessment.id.
-  const questions =
-    await this.prisma.question.findMany({
+    // Step 3:
+    // Fetch all questions that belong to the assessment.
+    //
+    // We use the internal assessment UUID because
+    // Question.assessmentId references Assessment.id.
+    const questions = await this.prisma.question.findMany({
       where: {
         assessmentId: assessment.id,
       },
@@ -394,35 +348,34 @@ export class QuestionsService {
       },
     });
 
-  // Step 4:
-  // Return assessment context together with its questions.
-  //
-  // This helps the frontend display the title,
-  // current status and total marks without another request.
-  return {
-    assessment: {
-      assessmentId: assessment.assessmentId,
-      title: assessment.title,
-      status: assessment.status,
-      maximumMarks: assessment.maximumMarks,
-    },
-    questions,
-  };
-}
+    // Step 4:
+    // Return assessment context together with its questions.
+    //
+    // This helps the frontend display the title,
+    // current status and total marks without another request.
+    return {
+      assessment: {
+        assessmentId: assessment.assessmentId,
+        title: assessment.title,
+        status: assessment.status,
+        maximumMarks: assessment.maximumMarks,
+      },
+      questions,
+    };
+  }
 
-async updateForTeacher(
-  teacherUserId: string,
-  assessmentId: string,
-  questionId: string,
-  dto: UpdateQuestionDto,
-) {
-  // Step 1:
-  // Find the assessment using its public ID and the
-  // logged-in teacher's ID.
-  //
-  // This performs the ownership check.
-  const assessment =
-    await this.prisma.assessment.findFirst({
+  async updateForTeacher(
+    teacherUserId: string,
+    assessmentId: string,
+    questionId: string,
+    dto: UpdateQuestionDto,
+  ) {
+    // Step 1:
+    // Find the assessment using its public ID and the
+    // logged-in teacher's ID.
+    //
+    // This performs the ownership check.
+    const assessment = await this.prisma.assessment.findFirst({
       where: {
         assessmentId,
         teacherId: teacherUserId,
@@ -433,33 +386,30 @@ async updateForTeacher(
       },
     });
 
-  // Covers:
-  // - assessment does not exist
-  // - assessment belongs to another teacher
-  if (!assessment) {
-    throw new NotFoundException(
-      'Assessment not found',
-    );
-  }
+    // Covers:
+    // - assessment does not exist
+    // - assessment belongs to another teacher
+    if (!assessment) {
+      throw new NotFoundException('Assessment not found');
+    }
 
-  // Step 2:
-  // Questions may be changed only while the parent
-  // assessment is still a draft.
-  if (assessment.status !== AssessmentStatus.DRAFT) {
-    throw new ConflictException(
-      'Questions can be updated only in draft assessments',
-    );
-  }
+    // Step 2:
+    // Questions may be changed only while the parent
+    // assessment is still a draft.
+    if (assessment.status !== AssessmentStatus.DRAFT) {
+      throw new ConflictException(
+        'Questions can be updated only in draft assessments',
+      );
+    }
 
-  // Step 3:
-  // Find the question using:
-  // - public question ID
-  // - internal parent assessment UUID
-  //
-  // This ensures the question really belongs to the
-  // assessment from the route.
-  const question =
-    await this.prisma.question.findFirst({
+    // Step 3:
+    // Find the question using:
+    // - public question ID
+    // - internal parent assessment UUID
+    //
+    // This ensures the question really belongs to the
+    // assessment from the route.
+    const question = await this.prisma.question.findFirst({
       where: {
         questionId,
         assessmentId: assessment.id,
@@ -479,42 +429,36 @@ async updateForTeacher(
       },
     });
 
-  if (!question) {
-    throw new NotFoundException(
-      'Question not found',
-    );
-  }
+    if (!question) {
+      throw new NotFoundException('Question not found');
+    }
 
-  // Step 4:
-  // Combine the existing values with the fields supplied
-  // by the PATCH request.
-  //
-  // Omitted fields keep their current values.
-  const updatedPrompt =
-    dto.prompt === undefined
-      ? question.prompt
-      : dto.prompt.trim();
+    // Step 4:
+    // Combine the existing values with the fields supplied
+    // by the PATCH request.
+    //
+    // Omitted fields keep their current values.
+    const updatedPrompt =
+      dto.prompt === undefined ? question.prompt : dto.prompt.trim();
 
-  const updatedMarks =
-    dto.marks ?? question.marks;
+    const updatedMarks = dto.marks ?? question.marks;
 
-  // Step 5:
-  // Validate the merged data according to the question's
-  // existing type.
-  if (question.type === QuestionType.MCQ) {
-    this.validateMcqUpdate(question, dto);
-  } else {
-    this.validateWrittenOrVoiceUpdate(question, dto);
-  }
+    // Step 5:
+    // Validate the merged data according to the question's
+    // existing type.
+    if (question.type === QuestionType.MCQ) {
+      this.validateMcqUpdate(question, dto);
+    } else {
+      this.validateWrittenOrVoiceUpdate(question, dto);
+    }
 
-  // Step 6:
-  // Update the question and recalculate the assessment's
-  // maximum marks inside one transaction.
-  //
-  // If one operation fails, both are rolled back.
-  return this.prisma.$transaction(async (tx) => {
-    const updatedQuestion =
-      await tx.question.update({
+    // Step 6:
+    // Update the question and recalculate the assessment's
+    // maximum marks inside one transaction.
+    //
+    // If one operation fails, both are rolled back.
+    return this.prisma.$transaction(async (tx) => {
+      const updatedQuestion = await tx.question.update({
         where: {
           id: question.id,
         },
@@ -528,18 +472,14 @@ async updateForTeacher(
                   dto.options === undefined
                     ? undefined
                     : (dto.options.map((option) => ({
-                        id: option.id
-                          .trim()
-                          .toUpperCase(),
+                        id: option.id.trim().toUpperCase(),
                         text: option.text.trim(),
                       })) as Prisma.InputJsonValue),
 
                 correctOption:
                   dto.correctOption === undefined
                     ? undefined
-                    : dto.correctOption
-                        .trim()
-                        .toUpperCase(),
+                    : dto.correctOption.trim().toUpperCase(),
 
                 explanation:
                   dto.explanation === undefined
@@ -577,9 +517,8 @@ async updateForTeacher(
         },
       });
 
-    // Recalculate the total marks after the question update.
-    const marksResult =
-      await tx.question.aggregate({
+      // Recalculate the total marks after the question update.
+      const marksResult = await tx.question.aggregate({
         where: {
           assessmentId: assessment.id,
         },
@@ -588,152 +527,140 @@ async updateForTeacher(
         },
       });
 
-    const maximumMarks =
-      marksResult._sum.marks ?? 0;
+      const maximumMarks = marksResult._sum.marks ?? 0;
 
-    await tx.assessment.update({
-      where: {
-        id: assessment.id,
-      },
-      data: {
-        maximumMarks,
-      },
+      await tx.assessment.update({
+        where: {
+          id: assessment.id,
+        },
+        data: {
+          maximumMarks,
+        },
+      });
+
+      return {
+        question: updatedQuestion,
+        assessment: {
+          assessmentId,
+          maximumMarks,
+        },
+      };
     });
+  }
 
-    return {
-      question: updatedQuestion,
-      assessment: {
-        assessmentId,
-        maximumMarks,
-      },
-    };
-  });
-}
+  private validateMcqUpdate(
+    existingQuestion: {
+      options: Prisma.JsonValue;
+      correctOption: string | null;
+    },
+    dto: UpdateQuestionDto,
+  ): void {
+    // MCQs cannot receive fields belonging to TYPED
+    // or VOICE questions.
+    if (
+      dto.modelAnswer !== undefined ||
+      dto.gradingInstructions !== undefined
+    ) {
+      throw new BadRequestException(
+        'MCQ questions cannot contain modelAnswer or gradingInstructions',
+      );
+    }
 
-private validateMcqUpdate(
-  existingQuestion: {
-    options: Prisma.JsonValue;
-    correctOption: string | null;
-  },
-  dto: UpdateQuestionDto,
-): void {
-  // MCQs cannot receive fields belonging to TYPED
-  // or VOICE questions.
-  if (
-    dto.modelAnswer !== undefined ||
-    dto.gradingInstructions !== undefined
+    // Use new options when supplied.
+    // Otherwise use the options already stored in the database.
+    const existingOptions = existingQuestion.options as Array<{
+      id: string;
+      text: string;
+    }> | null;
+
+    const options = dto.options ?? existingOptions;
+
+    if (!options || options.length !== 4) {
+      throw new BadRequestException(
+        'MCQ questions must contain exactly four options',
+      );
+    }
+
+    const normalizedOptionIds = options.map((option) =>
+      option.id.trim().toUpperCase(),
+    );
+
+    // Ensure IDs such as A, B, C and D are unique.
+    if (new Set(normalizedOptionIds).size !== normalizedOptionIds.length) {
+      throw new BadRequestException('MCQ option IDs must be unique');
+    }
+
+    const normalizedOptionTexts = options.map((option) =>
+      option.text.trim().toLowerCase(),
+    );
+
+    // Treat values such as "Delhi" and " delhi "
+    // as duplicate option text.
+    if (new Set(normalizedOptionTexts).size !== normalizedOptionTexts.length) {
+      throw new BadRequestException('MCQ option text must be unique');
+    }
+
+    const correctOption =
+      dto.correctOption === undefined
+        ? existingQuestion.correctOption
+        : dto.correctOption.trim().toUpperCase();
+
+    if (!correctOption) {
+      throw new BadRequestException(
+        'correctOption is required for MCQ questions',
+      );
+    }
+
+    // Important:
+    // If options are changed, the existing correct option
+    // must still exist among the new option IDs.
+    if (!normalizedOptionIds.includes(correctOption)) {
+      throw new BadRequestException(
+        'correctOption must match one of the option IDs',
+      );
+    }
+  }
+
+  private validateWrittenOrVoiceUpdate(
+    existingQuestion: {
+      modelAnswer: string | null;
+    },
+    dto: UpdateQuestionDto,
+  ): void {
+    // TYPED and VOICE questions cannot receive MCQ fields.
+    if (
+      dto.options !== undefined ||
+      dto.correctOption !== undefined ||
+      dto.explanation !== undefined
+    ) {
+      throw new BadRequestException(
+        'Typed and voice questions cannot contain MCQ fields',
+      );
+    }
+
+    // Use the new model answer when supplied.
+    // Otherwise retain the stored model answer.
+    const modelAnswer =
+      dto.modelAnswer === undefined
+        ? existingQuestion.modelAnswer
+        : dto.modelAnswer.trim();
+
+    if (!modelAnswer) {
+      throw new BadRequestException(
+        'modelAnswer is required for typed and voice questions',
+      );
+    }
+  }
+
+  async findOneForTeacher(
+    teacherUserId: string,
+    assessmentId: string,
+    questionId: string,
   ) {
-    throw new BadRequestException(
-      'MCQ questions cannot contain modelAnswer or gradingInstructions',
-    );
-  }
-
-  // Use new options when supplied.
-  // Otherwise use the options already stored in the database.
-  const existingOptions =
-    existingQuestion.options as
-      | Array<{ id: string; text: string }>
-      | null;
-
-  const options = dto.options ?? existingOptions;
-
-  if (!options || options.length !== 4) {
-    throw new BadRequestException(
-      'MCQ questions must contain exactly four options',
-    );
-  }
-
-  const normalizedOptionIds = options.map(
-    (option) => option.id.trim().toUpperCase(),
-  );
-
-  // Ensure IDs such as A, B, C and D are unique.
-  if (
-    new Set(normalizedOptionIds).size !==
-    normalizedOptionIds.length
-  ) {
-    throw new BadRequestException(
-      'MCQ option IDs must be unique',
-    );
-  }
-
-  const normalizedOptionTexts = options.map(
-    (option) => option.text.trim().toLowerCase(),
-  );
-
-  // Treat values such as "Delhi" and " delhi "
-  // as duplicate option text.
-  if (
-    new Set(normalizedOptionTexts).size !==
-    normalizedOptionTexts.length
-  ) {
-    throw new BadRequestException(
-      'MCQ option text must be unique',
-    );
-  }
-
-  const correctOption =
-    dto.correctOption === undefined
-      ? existingQuestion.correctOption
-      : dto.correctOption.trim().toUpperCase();
-
-  if (!correctOption) {
-    throw new BadRequestException(
-      'correctOption is required for MCQ questions',
-    );
-  }
-
-  // Important:
-  // If options are changed, the existing correct option
-  // must still exist among the new option IDs.
-  if (!normalizedOptionIds.includes(correctOption)) {
-    throw new BadRequestException(
-      'correctOption must match one of the option IDs',
-    );
-  }
-}
-
-private validateWrittenOrVoiceUpdate(
-  existingQuestion: {
-    modelAnswer: string | null;
-  },
-  dto: UpdateQuestionDto,
-): void {
-  // TYPED and VOICE questions cannot receive MCQ fields.
-  if (
-    dto.options !== undefined ||
-    dto.correctOption !== undefined ||
-    dto.explanation !== undefined
-  ) {
-    throw new BadRequestException(
-      'Typed and voice questions cannot contain MCQ fields',
-    );
-  }
-
-  // Use the new model answer when supplied.
-  // Otherwise retain the stored model answer.
-  const modelAnswer =
-    dto.modelAnswer === undefined
-      ? existingQuestion.modelAnswer
-      : dto.modelAnswer.trim();
-
-  if (!modelAnswer) {
-    throw new BadRequestException(
-      'modelAnswer is required for typed and voice questions',
-    );
-  }
-}
-
-async findOneForTeacher(
-  teacherUserId: string,
-  assessmentId: string,
-  questionId: string,
-) {
-  // Step 1:
-  // Find the owned assessment using the public assessment ID
-  // and the teacher UUID from the JWT.
-  const assessment =
-    await this.prisma.assessment.findFirst({
+    // Step 1:
+    // Find the owned assessment using the public assessment ID
+    // and the teacher UUID from the JWT.
+    const assessment = await this.prisma.assessment.findFirst({
       where: {
         assessmentId,
         teacherId: teacherUserId,
@@ -747,23 +674,20 @@ async findOneForTeacher(
       },
     });
 
-  // Return the same 404 when the assessment is missing
-  // or owned by another teacher.
-  if (!assessment) {
-    throw new NotFoundException(
-      'Assessment not found',
-    );
-  }
+    // Return the same 404 when the assessment is missing
+    // or owned by another teacher.
+    if (!assessment) {
+      throw new NotFoundException('Assessment not found');
+    }
 
-  // Step 2:
-  // Find the question using both:
-  // - its public question ID
-  // - the internal UUID of the parent assessment
-  //
-  // This prevents a question from another assessment
-  // being accessed through this route.
-  const question =
-    await this.prisma.question.findFirst({
+    // Step 2:
+    // Find the question using both:
+    // - its public question ID
+    // - the internal UUID of the parent assessment
+    //
+    // This prevents a question from another assessment
+    // being accessed through this route.
+    const question = await this.prisma.question.findFirst({
       where: {
         questionId,
         assessmentId: assessment.id,
@@ -784,40 +708,37 @@ async findOneForTeacher(
       },
     });
 
-  if (!question) {
-    throw new NotFoundException(
-      'Question not found',
-    );
+    if (!question) {
+      throw new NotFoundException('Question not found');
+    }
+
+    // Return assessment context together with the full
+    // teacher-only question details.
+    return {
+      assessment: {
+        assessmentId: assessment.assessmentId,
+        title: assessment.title,
+        status: assessment.status,
+        maximumMarks: assessment.maximumMarks,
+      },
+      question,
+    };
   }
 
-  // Return assessment context together with the full
-  // teacher-only question details.
-  return {
-    assessment: {
-      assessmentId: assessment.assessmentId,
-      title: assessment.title,
-      status: assessment.status,
-      maximumMarks: assessment.maximumMarks,
-    },
-    question,
-  };
-}
-
-async deleteForTeacher(
-  teacherUserId: string,
-  assessmentId: string,
-  questionId: string,
-) {
-  // --------------------------------------------------
-  // Step 1:
-  // Find the assessment using:
-  // - the public assessment ID from the URL
-  // - the logged-in teacher ID from the JWT
-  //
-  // This confirms that the teacher owns the assessment.
-  // --------------------------------------------------
-  const assessment =
-    await this.prisma.assessment.findFirst({
+  async deleteForTeacher(
+    teacherUserId: string,
+    assessmentId: string,
+    questionId: string,
+  ) {
+    // --------------------------------------------------
+    // Step 1:
+    // Find the assessment using:
+    // - the public assessment ID from the URL
+    // - the logged-in teacher ID from the JWT
+    //
+    // This confirms that the teacher owns the assessment.
+    // --------------------------------------------------
+    const assessment = await this.prisma.assessment.findFirst({
       where: {
         assessmentId,
         teacherId: teacherUserId,
@@ -828,48 +749,42 @@ async deleteForTeacher(
       },
     });
 
-  // --------------------------------------------------
-  // Step 2:
-  // Return 404 if:
-  // - the assessment does not exist
-  // - the assessment belongs to another teacher
-  //
-  // We intentionally use the same response for both.
-  // --------------------------------------------------
-  if (!assessment) {
-    throw new NotFoundException(
-      'Assessment not found',
-    );
-  }
+    // --------------------------------------------------
+    // Step 2:
+    // Return 404 if:
+    // - the assessment does not exist
+    // - the assessment belongs to another teacher
+    //
+    // We intentionally use the same response for both.
+    // --------------------------------------------------
+    if (!assessment) {
+      throw new NotFoundException('Assessment not found');
+    }
 
-  // --------------------------------------------------
-  // Step 3:
-  // Questions can only be deleted while the
-  // assessment is still in DRAFT status.
-  //
-  // Once published, questions are part of a fixed
-  // assessment and should not change.
-  // --------------------------------------------------
-  if (
-    assessment.status !==
-    AssessmentStatus.DRAFT
-  ) {
-    throw new ConflictException(
-      'Questions can be deleted only from draft assessments',
-    );
-  }
+    // --------------------------------------------------
+    // Step 3:
+    // Questions can only be deleted while the
+    // assessment is still in DRAFT status.
+    //
+    // Once published, questions are part of a fixed
+    // assessment and should not change.
+    // --------------------------------------------------
+    if (assessment.status !== AssessmentStatus.DRAFT) {
+      throw new ConflictException(
+        'Questions can be deleted only from draft assessments',
+      );
+    }
 
-  // --------------------------------------------------
-  // Step 4:
-  // Find the question using:
-  // - public question ID
-  // - internal assessment UUID
-  //
-  // This confirms the question actually belongs
-  // to this particular assessment.
-  // --------------------------------------------------
-  const question =
-    await this.prisma.question.findFirst({
+    // --------------------------------------------------
+    // Step 4:
+    // Find the question using:
+    // - public question ID
+    // - internal assessment UUID
+    //
+    // This confirms the question actually belongs
+    // to this particular assessment.
+    // --------------------------------------------------
+    const question = await this.prisma.question.findFirst({
       where: {
         questionId,
         assessmentId: assessment.id,
@@ -882,89 +797,86 @@ async deleteForTeacher(
       },
     });
 
-  // --------------------------------------------------
-  // Step 5:
-  // Question does not exist in this assessment.
-  // --------------------------------------------------
-  if (!question) {
-    throw new NotFoundException(
-      'Question not found',
-    );
-  }
+    // --------------------------------------------------
+    // Step 5:
+    // Question does not exist in this assessment.
+    // --------------------------------------------------
+    if (!question) {
+      throw new NotFoundException('Question not found');
+    }
 
-  // --------------------------------------------------
-  // Step 6:
-  // Delete + reorder + recalculate marks should all
-  // succeed together.
-  //
-  // A transaction prevents inconsistent data.
-  //
-  // Example:
-  // If deletion succeeds but marks update fails,
-  // Prisma rolls everything back.
-  // --------------------------------------------------
-  return this.prisma.$transaction(async (tx) => {
-    // ------------------------------------------------
-    // Step 7:
-    // Permanently delete the question.
+    // --------------------------------------------------
+    // Step 6:
+    // Delete + reorder + recalculate marks should all
+    // succeed together.
     //
-    // We decided hard deletion is safe because
-    // deletion is allowed only while assessment
-    // status is DRAFT.
-    // ------------------------------------------------
-    await tx.question.delete({
-      where: {
-        id: question.id,
-      },
-    });
-
-    // ------------------------------------------------
-    // Step 8:
-    // Reorder every question that appeared after
-    // the deleted question.
+    // A transaction prevents inconsistent data.
     //
     // Example:
-    //
-    // Before:
-    // 1, 2, 3, 4, 5
-    //
-    // Delete 3
-    //
-    // Questions 4 and 5 are greater than 3,
-    // so decrement them:
-    //
-    // 4 -> 3
-    // 5 -> 4
-    // ------------------------------------------------
-    await tx.question.updateMany({
-      where: {
-        assessmentId: assessment.id,
-        order: {
-          gt: question.order,
+    // If deletion succeeds but marks update fails,
+    // Prisma rolls everything back.
+    // --------------------------------------------------
+    return this.prisma.$transaction(async (tx) => {
+      // ------------------------------------------------
+      // Step 7:
+      // Permanently delete the question.
+      //
+      // We decided hard deletion is safe because
+      // deletion is allowed only while assessment
+      // status is DRAFT.
+      // ------------------------------------------------
+      await tx.question.delete({
+        where: {
+          id: question.id,
         },
-      },
-      data: {
-        order: {
-          decrement: 1,
-        },
-      },
-    });
+      });
 
-    // ------------------------------------------------
-    // Step 9:
-    // Calculate the new sum of marks for all
-    // remaining questions.
-    //
-    // Example:
-    //
-    // Before:
-    // 2 + 5 + 5 = 12
-    //
-    // Delete the 2-mark question:
-    // 5 + 5 = 10
-    // ------------------------------------------------
-    const marksResult =
-      await tx.question.aggregate({
+      // ------------------------------------------------
+      // Step 8:
+      // Reorder every question that appeared after
+      // the deleted question.
+      //
+      // Example:
+      //
+      // Before:
+      // 1, 2, 3, 4, 5
+      //
+      // Delete 3
+      //
+      // Questions 4 and 5 are greater than 3,
+      // so decrement them:
+      //
+      // 4 -> 3
+      // 5 -> 4
+      // ------------------------------------------------
+      await tx.question.updateMany({
+        where: {
+          assessmentId: assessment.id,
+          order: {
+            gt: question.order,
+          },
+        },
+        data: {
+          order: {
+            decrement: 1,
+          },
+        },
+      });
+
+      // ------------------------------------------------
+      // Step 9:
+      // Calculate the new sum of marks for all
+      // remaining questions.
+      //
+      // Example:
+      //
+      // Before:
+      // 2 + 5 + 5 = 12
+      //
+      // Delete the 2-mark question:
+      // 5 + 5 = 10
+      // ------------------------------------------------
+      const marksResult = await tx.question.aggregate({
         where: {
           assessmentId: assessment.id,
         },
@@ -973,39 +885,267 @@ async deleteForTeacher(
         },
       });
 
-    // If there are no questions left,
-    // Prisma returns null for the sum.
-    //
-    // In that case maximumMarks becomes 0.
-    const maximumMarks =
-      marksResult._sum.marks ?? 0;
+      // If there are no questions left,
+      // Prisma returns null for the sum.
+      //
+      // In that case maximumMarks becomes 0.
+      const maximumMarks = marksResult._sum.marks ?? 0;
 
-    // ------------------------------------------------
-    // Step 10:
-    // Keep Assessment.maximumMarks synchronized
-    // with the remaining questions.
-    // ------------------------------------------------
-    await tx.assessment.update({
-      where: {
-        id: assessment.id,
-      },
-      data: {
+      // ------------------------------------------------
+      // Step 10:
+      // Keep Assessment.maximumMarks synchronized
+      // with the remaining questions.
+      // ------------------------------------------------
+      await tx.assessment.update({
+        where: {
+          id: assessment.id,
+        },
+        data: {
+          maximumMarks,
+        },
+      });
+
+      // ------------------------------------------------
+      // Step 11:
+      // Return a simple response.
+      //
+      // We don't return the deleted question because
+      // it no longer exists in the database.
+      // ------------------------------------------------
+      return {
+        message: 'Question deleted successfully',
+        deletedQuestionId: question.questionId,
         maximumMarks,
+      };
+    });
+  }
+
+  async reorderForTeacher(
+    teacherUserId: string,
+    assessmentId: string,
+    dto: ReorderQuestionsDto,
+  ) {
+    // --------------------------------------------------
+    // Step 1:
+    // Find the assessment using:
+    // - public assessment ID from URL
+    // - teacher ID from JWT
+    //
+    // This confirms ownership.
+    // --------------------------------------------------
+    const assessment = await this.prisma.assessment.findFirst({
+      where: {
+        assessmentId,
+        teacherId: teacherUserId,
+      },
+      select: {
+        id: true,
+        status: true,
       },
     });
 
-    // ------------------------------------------------
-    // Step 11:
-    // Return a simple response.
+    // --------------------------------------------------
+    // Step 2:
+    // Assessment not found or belongs to another teacher.
+    // --------------------------------------------------
+    if (!assessment) {
+      throw new NotFoundException('Assessment not found');
+    }
+
+    // --------------------------------------------------
+    // Step 3:
+    // Questions can only be reordered while the
+    // assessment is still DRAFT.
+    // --------------------------------------------------
+    if (assessment.status !== AssessmentStatus.DRAFT) {
+      throw new ConflictException(
+        'Questions can be reordered only in draft assessments',
+      );
+    }
+
+    // --------------------------------------------------
+    // Step 4:
+    // Fetch all current questions for this assessment.
     //
-    // We don't return the deleted question because
-    // it no longer exists in the database.
-    // ------------------------------------------------
-    return {
-      message: 'Question deleted successfully',
-      deletedQuestionId: question.questionId,
-      maximumMarks,
-    };
-  });
-}
+    // We need them to verify:
+    // - count
+    // - ownership
+    // - valid IDs
+    // --------------------------------------------------
+    const existingQuestions = await this.prisma.question.findMany({
+      where: {
+        assessmentId: assessment.id,
+      },
+      select: {
+        id: true,
+        questionId: true,
+        order: true,
+      },
+    });
+
+    // --------------------------------------------------
+    // Step 5:
+    // The frontend must send the full desired order.
+    //
+    // Example:
+    // if DB has 3 questions,
+    // request must also contain exactly 3.
+    // --------------------------------------------------
+    if (dto.questions.length !== existingQuestions.length) {
+      throw new BadRequestException(
+        'All assessment questions must be included when reordering',
+      );
+    }
+
+    // --------------------------------------------------
+    // Step 6:
+    // Verify question IDs are unique in the request.
+    // --------------------------------------------------
+    const questionIds = dto.questions.map((item) => item.questionId);
+
+    if (new Set(questionIds).size !== questionIds.length) {
+      throw new BadRequestException('Question IDs must be unique');
+    }
+
+    // --------------------------------------------------
+    // Step 7:
+    // Verify order values are unique.
+    // --------------------------------------------------
+    const orders = dto.questions.map((item) => item.order);
+
+    if (new Set(orders).size !== orders.length) {
+      throw new BadRequestException('Question order values must be unique');
+    }
+
+    // --------------------------------------------------
+    // Step 8:
+    // Orders must be sequential:
+    //
+    // For 3 questions:
+    // valid   -> 1,2,3
+    // invalid -> 1,2,4
+    // invalid -> 2,3,4
+    // --------------------------------------------------
+    const sortedOrders = [...orders].sort((a, b) => a - b);
+
+    for (let index = 0; index < sortedOrders.length; index++) {
+      const expectedOrder = index + 1;
+
+      if (sortedOrders[index] !== expectedOrder) {
+        throw new BadRequestException(
+          'Question order values must be sequential starting from 1',
+        );
+      }
+    }
+
+    // --------------------------------------------------
+    // Step 9:
+    // Verify every questionId in the request actually
+    // belongs to this assessment.
+    // --------------------------------------------------
+    const existingQuestionIds = new Set(
+      existingQuestions.map((question) => question.questionId),
+    );
+
+    for (const item of dto.questions) {
+      if (!existingQuestionIds.has(item.questionId)) {
+        throw new NotFoundException(`Question ${item.questionId} not found`);
+      }
+    }
+
+    // --------------------------------------------------
+    // Step 10:
+    // Perform the reorder in one transaction.
+    //
+    // We use TWO phases because of the unique constraint:
+    //
+    // @@unique([assessmentId, order])
+    //
+    // Directly swapping:
+    // 1 -> 2
+    // 2 -> 1
+    //
+    // can cause a temporary duplicate order.
+    // --------------------------------------------------
+    return this.prisma.$transaction(async (tx) => {
+      // ------------------------------------------------
+      // Phase 1:
+      // Move every question to a temporary high order.
+      //
+      // Example:
+      // 1 -> 1001
+      // 2 -> 1002
+      // 3 -> 1003
+      //
+      // This frees up final positions 1,2,3.
+      // ------------------------------------------------
+      const temporaryOffset = 100000;
+
+      for (let index = 0; index < existingQuestions.length; index++) {
+        const question = existingQuestions[index];
+
+        await tx.question.update({
+          where: {
+            id: question.id,
+          },
+          data: {
+            order: temporaryOffset + index + 1,
+          },
+        });
+      }
+
+      // ------------------------------------------------
+      // Phase 2:
+      // Assign the final desired order.
+      // ------------------------------------------------
+      for (const item of dto.questions) {
+        // Find the internal DB question row
+        // corresponding to the public question ID.
+        const existingQuestion = existingQuestions.find(
+          (question) => question.questionId === item.questionId,
+        );
+
+        // This should already be guaranteed by
+        // earlier validation, but TypeScript still
+        // needs us to guard against undefined.
+        if (!existingQuestion) {
+          throw new NotFoundException('Question not found');
+        }
+
+        await tx.question.update({
+          where: {
+            id: existingQuestion.id,
+          },
+          data: {
+            order: item.order,
+          },
+        });
+      }
+
+      // ------------------------------------------------
+      // Step 11:
+      // Return the final ordered list.
+      // ------------------------------------------------
+      const reorderedQuestions = await tx.question.findMany({
+        where: {
+          assessmentId: assessment.id,
+        },
+        orderBy: {
+          order: 'asc',
+        },
+        select: {
+          questionId: true,
+          type: true,
+          prompt: true,
+          marks: true,
+          order: true,
+        },
+      });
+
+      return {
+        message: 'Questions reordered successfully',
+        questions: reorderedQuestions,
+      };
+    });
+  }
 }

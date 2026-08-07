@@ -18,14 +18,14 @@ import { UserRole } from '../generated/prisma/client';
 
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { QuestionsService } from './questions.service';
+import { ReorderQuestionsDto } from './dto/reorder-questions.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
+
 @Controller('assessments/:assessmentId/questions')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.TEACHER)
 export class QuestionsController {
-  constructor(
-    private readonly questionsService: QuestionsService,
-  ) {}
+  constructor(private readonly questionsService: QuestionsService) {}
 
   /**
    * Creates a question inside an owned draft assessment.
@@ -36,11 +36,7 @@ export class QuestionsController {
     @Param('assessmentId') assessmentId: string,
     @Body() dto: CreateQuestionDto,
   ) {
-    return this.questionsService.createForTeacher(
-      user.sub,
-      assessmentId,
-      dto,
-    );
+    return this.questionsService.createForTeacher(user.sub, assessmentId, dto);
   }
 
   /**
@@ -53,53 +49,65 @@ export class QuestionsController {
     @CurrentUser() user: JwtPayload,
     @Param('assessmentId') assessmentId: string,
   ) {
-    return this.questionsService.findAllForTeacher(
-      user.sub,
-      assessmentId,
-    );
+    return this.questionsService.findAllForTeacher(user.sub, assessmentId);
   }
 
-  /**
- * Updates one question inside an owned draft assessment.
- */
-@Patch(':questionId')
-updateQuestion(
+  @Patch('reorder')
+reorderQuestions(
   @CurrentUser() user: JwtPayload,
   @Param('assessmentId') assessmentId: string,
-  @Param('questionId') questionId: string,
-  @Body() dto: UpdateQuestionDto,
+  @Body() dto: ReorderQuestionsDto,
 ) {
-  return this.questionsService.updateForTeacher(
+  return this.questionsService.reorderForTeacher(
     user.sub,
     assessmentId,
-    questionId,
     dto,
   );
 }
 
-@Get(':questionId')
-getQuestion(
-  @CurrentUser() user: JwtPayload,
-  @Param('assessmentId') assessmentId: string,
-  @Param('questionId') questionId: string,
-) {
-  return this.questionsService.findOneForTeacher(
-    user.sub,
-    assessmentId,
-    questionId,
-  );
-}
+  /**
+   * Updates one question inside an owned draft assessment.
+   */
+  @Patch(':questionId')
+  updateQuestion(
+    @CurrentUser() user: JwtPayload,
+    @Param('assessmentId') assessmentId: string,
+    @Param('questionId') questionId: string,
+    @Body() dto: UpdateQuestionDto,
+  ) {
+    return this.questionsService.updateForTeacher(
+      user.sub,
+      assessmentId,
+      questionId,
+      dto,
+    );
+  }
 
-@Delete(':questionId')
-deleteQuestion(
-  @CurrentUser() user: JwtPayload,
-  @Param('assessmentId') assessmentId: string,
-  @Param('questionId') questionId: string,
-) {
-  return this.questionsService.deleteForTeacher(
-    user.sub,
-    assessmentId,
-    questionId,
-  );
-}
+  @Get(':questionId')
+  getQuestion(
+    @CurrentUser() user: JwtPayload,
+    @Param('assessmentId') assessmentId: string,
+    @Param('questionId') questionId: string,
+  ) {
+    return this.questionsService.findOneForTeacher(
+      user.sub,
+      assessmentId,
+      questionId,
+    );
+  }
+
+  @Delete(':questionId')
+  deleteQuestion(
+    @CurrentUser() user: JwtPayload,
+    @Param('assessmentId') assessmentId: string,
+    @Param('questionId') questionId: string,
+  ) {
+    return this.questionsService.deleteForTeacher(
+      user.sub,
+      assessmentId,
+      questionId,
+    );
+  }
+
+  
 }

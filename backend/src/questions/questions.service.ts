@@ -91,154 +91,36 @@ export class QuestionsService {
     return maximumMarks;
   }
 
-  async createForTeacher(
-    teacherUserId: string,
-    assessmentId: string,
-    dto: CreateQuestionDto,
-  ) {
-    // Step 1:
-    // Reuse the shared ownership lookup.
-    const assessment = await this.findOwnedAssessment(
-      teacherUserId,
-      assessmentId,
-    );
-
-    // Step 2:
-    // Questions can be changed only while the
-    // assessment is still a draft.
-    if (assessment.status !== AssessmentStatus.DRAFT) {
-      throw new ConflictException(
-        'Questions can be added only to draft assessments',
-      );
-    }
-
-    // Step 3:
-    // Apply business rules that depend on question type.
-    this.validateQuestionByType(dto);
-
-    // Step 4:
-    // The next question order is derived from the current
-    // maximum order. Because concurrent creates can otherwise
-    // choose the same value, run at SERIALIZABLE isolation and
-    // retry known uniqueness/write-conflict errors.
+  /**
+   * Runs an interactive Prisma transaction at SERIALIZABLE isolation and
+   * retries only the Prisma error codes explicitly allowed by the caller.
+   *
+   * - P2034: transaction write conflict / serialization failure
+   * - P2002: unique constraint conflict (used by create when two requests
+   *   calculate the same next question order)
+   *
+   * We intentionally do not add retry delays yet because expected write
+   * contention is low for the MVP.
+   */
+  private async runSerializableTransaction<T>(
+    operation: (tx: Prisma.TransactionClient) => Promise<T>,
+    retryableCodes: string[] = ['P2034'],
+  ): Promise<T> {
     const maxAttempts = 3;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const questionId = generateQuestionId();
-
       try {
-        return await this.prisma.$transaction(
-          async (tx) => {
-            // Re-check DRAFT status inside the transaction so
-            // publishing cannot race with question creation.
-            const draftAssessment = await tx.assessment.findFirst({
-              where: {
-                id: assessment.id,
-                teacherId: teacherUserId,
-                status: AssessmentStatus.DRAFT,
-              },
-              select: {
-                id: true,
-              },
-            });
-
-            if (!draftAssessment) {
-              throw new ConflictException(
-                'Questions can be added only to draft assessments',
-              );
-            }
-
-            const orderResult = await tx.question.aggregate({
-              where: {
-                assessmentId: assessment.id,
-              },
-              _max: {
-                order: true,
-              },
-            });
-
-            const nextOrder = (orderResult._max.order ?? 0) + 1;
-
-            const createdQuestion = await tx.question.create({
-              data: {
-                questionId,
-                assessmentId: assessment.id,
-                type: dto.type,
-                prompt: dto.prompt.trim(),
-                marks: dto.marks,
-                order: nextOrder,
-
-                options:
-                  dto.type === QuestionType.MCQ
-                    ? (dto.options!.map((option) => ({
-                        id: option.id.trim().toUpperCase(),
-                        text: option.text.trim(),
-                      })) as Prisma.InputJsonValue)
-                    : Prisma.JsonNull,
-
-                correctOption:
-                  dto.type === QuestionType.MCQ
-                    ? dto.correctOption!.trim().toUpperCase()
-                    : null,
-
-                explanation:
-                  dto.type === QuestionType.MCQ && dto.explanation != null
-                    ? dto.explanation.trim()
-                    : null,
-
-                modelAnswer:
-                  dto.type === QuestionType.TYPED ||
-                  dto.type === QuestionType.VOICE
-                    ? dto.modelAnswer!.trim()
-                    : null,
-
-                gradingInstructions:
-                  (dto.type === QuestionType.TYPED ||
-                    dto.type === QuestionType.VOICE) &&
-                  dto.gradingInstructions != null
-                    ? dto.gradingInstructions.trim()
-                    : null,
-              },
-              select: {
-                questionId: true,
-                type: true,
-                prompt: true,
-                marks: true,
-                order: true,
-                options: true,
-                correctOption: true,
-                explanation: true,
-                modelAnswer: true,
-                gradingInstructions: true,
-                createdAt: true,
-                updatedAt: true,
-              },
-            });
-
-            const maximumMarks = await this.recalculateMaximumMarks(
-              tx,
-              assessment.id,
-            );
-
-            return {
-              question: createdQuestion,
-              assessment: {
-                assessmentId,
-                maximumMarks,
-              },
-            };
-          },
-          {
-            isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-          },
-        );
+        return await this.prisma.$transaction(operation, {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        });
       } catch (error) {
         const code =
           typeof error === 'object' && error !== null && 'code' in error
             ? String((error as { code?: unknown }).code)
             : undefined;
 
-        const retryable = code === 'P2002' || code === 'P2034';
+        const retryable =
+          code !== undefined && retryableCodes.includes(code);
 
         if (!retryable || attempt === maxAttempts) {
           throw error;
@@ -246,9 +128,141 @@ export class QuestionsService {
       }
     }
 
-    // The loop either returns or throws; this is only a defensive fallback.
+    // Defensive fallback: the loop always returns or throws.
     throw new ConflictException(
-      'Could not create question due to a concurrent update. Please retry.',
+      'Operation could not be completed due to a concurrent update. Please retry.',
+    );
+  }
+
+  async createForTeacher(
+    teacherUserId: string,
+    assessmentId: string,
+    dto: CreateQuestionDto,
+  ) {
+    // Step 1: Verify the assessment belongs to this teacher.
+    const assessment = await this.findOwnedAssessment(
+      teacherUserId,
+      assessmentId,
+    );
+
+    // Fast-fail before opening a transaction.
+    if (assessment.status !== AssessmentStatus.DRAFT) {
+      throw new ConflictException(
+        'Questions can be added only to draft assessments',
+      );
+    }
+
+    // Validate rules that depend on the question type.
+    this.validateQuestionByType(dto);
+
+    // SERIALIZABLE + bounded retries prevents concurrent creates from
+    // permanently colliding on the next order value.
+    return this.runSerializableTransaction(
+      async (tx) => {
+        // Re-check the status inside the transaction. The assessment may
+        // have been published after the initial read.
+        const draftAssessment = await tx.assessment.findFirst({
+          where: {
+            id: assessment.id,
+            teacherId: teacherUserId,
+            status: AssessmentStatus.DRAFT,
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        if (!draftAssessment) {
+          throw new ConflictException(
+            'Questions can be added only to draft assessments',
+          );
+        }
+
+        const orderResult = await tx.question.aggregate({
+          where: {
+            assessmentId: assessment.id,
+          },
+          _max: {
+            order: true,
+          },
+        });
+
+        const nextOrder = (orderResult._max.order ?? 0) + 1;
+
+        // Generate inside the retryable operation so a rare public-ID
+        // collision receives a fresh ID on the next attempt.
+        const questionId = generateQuestionId();
+
+        const createdQuestion = await tx.question.create({
+          data: {
+            questionId,
+            assessmentId: assessment.id,
+            type: dto.type,
+            prompt: dto.prompt.trim(),
+            marks: dto.marks,
+            order: nextOrder,
+
+            options:
+              dto.type === QuestionType.MCQ
+                ? (dto.options!.map((option) => ({
+                    id: option.id.trim().toUpperCase(),
+                    text: option.text.trim(),
+                  })) as Prisma.InputJsonValue)
+                : Prisma.JsonNull,
+
+            correctOption:
+              dto.type === QuestionType.MCQ
+                ? dto.correctOption!.trim().toUpperCase()
+                : null,
+
+            explanation:
+              dto.type === QuestionType.MCQ && dto.explanation != null
+                ? dto.explanation.trim()
+                : null,
+
+            modelAnswer:
+              dto.type === QuestionType.TYPED ||
+              dto.type === QuestionType.VOICE
+                ? dto.modelAnswer!.trim()
+                : null,
+
+            gradingInstructions:
+              (dto.type === QuestionType.TYPED ||
+                dto.type === QuestionType.VOICE) &&
+              dto.gradingInstructions != null
+                ? dto.gradingInstructions.trim()
+                : null,
+          },
+          select: {
+            questionId: true,
+            type: true,
+            prompt: true,
+            marks: true,
+            order: true,
+            options: true,
+            correctOption: true,
+            explanation: true,
+            modelAnswer: true,
+            gradingInstructions: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+
+        const maximumMarks = await this.recalculateMaximumMarks(
+          tx,
+          assessment.id,
+        );
+
+        return {
+          question: createdQuestion,
+          assessment: {
+            assessmentId,
+            maximumMarks,
+          },
+        };
+      },
+      ['P2002', 'P2034'],
     );
   }
 
@@ -416,29 +430,21 @@ export class QuestionsService {
     questionId: string,
     dto: UpdateQuestionDto,
   ) {
-    // Step 1:
-    // Reuse the shared ownership lookup.
+    // Step 1: Verify assessment ownership.
     const assessment = await this.findOwnedAssessment(
       teacherUserId,
       assessmentId,
     );
 
-    // Step 2:
-    // Questions may be changed only while the parent
-    // assessment is still a draft.
+    // Fast-fail before opening a transaction.
     if (assessment.status !== AssessmentStatus.DRAFT) {
       throw new ConflictException(
         'Questions can be updated only in draft assessments',
       );
     }
 
-    // Step 3:
-    // Find the question using:
-    // - public question ID
-    // - internal parent assessment UUID
-    //
-    // This ensures the question really belongs to the
-    // assessment from the route.
+    // Load the current question so PATCH fields can be merged and validated
+    // against the question's existing type.
     const question = await this.prisma.question.findFirst({
       where: {
         questionId,
@@ -463,31 +469,38 @@ export class QuestionsService {
       throw new NotFoundException('Question not found');
     }
 
-    // Step 4:
-    // Combine the existing values with the fields supplied
-    // by the PATCH request.
-    //
-    // Omitted fields keep their current values.
+    // Null and undefined both mean "preserve the existing value".
     const updatedPrompt =
       dto.prompt == null ? question.prompt : dto.prompt.trim();
 
     const updatedMarks = dto.marks ?? question.marks;
 
-    // Step 5:
-    // Validate the merged data according to the question's
-    // existing type.
     if (question.type === QuestionType.MCQ) {
       this.validateMcqUpdate(question, dto);
     } else {
       this.validateWrittenOrVoiceUpdate(question, dto);
     }
 
-    // Step 6:
-    // Update the question and recalculate the assessment's
-    // maximum marks inside one transaction.
-    //
-    // If one operation fails, both are rolled back.
-    return this.prisma.$transaction(async (tx) => {
+    return this.runSerializableTransaction(async (tx) => {
+      // Authoritative status check: publishing could have happened after
+      // the initial DRAFT check.
+      const draftAssessment = await tx.assessment.findFirst({
+        where: {
+          id: assessment.id,
+          teacherId: teacherUserId,
+          status: AssessmentStatus.DRAFT,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (!draftAssessment) {
+        throw new ConflictException(
+          'Questions can be updated only in draft assessments',
+        );
+      }
+
       const updatedQuestion = await tx.question.update({
         where: {
           id: question.id,
@@ -547,7 +560,6 @@ export class QuestionsService {
         },
       });
 
-      // Recalculate the derived total using the shared helper.
       const maximumMarks = await this.recalculateMaximumMarks(
         tx,
         assessment.id,
@@ -729,103 +741,65 @@ export class QuestionsService {
     assessmentId: string,
     questionId: string,
   ) {
-    // --------------------------------------------------
-    // Step 1:
-    // Reuse the shared ownership lookup.
-    // --------------------------------------------------
+    // Step 1: Verify ownership.
     const assessment = await this.findOwnedAssessment(
       teacherUserId,
       assessmentId,
     );
 
-    // --------------------------------------------------
-    // Step 3:
-    // Questions can only be deleted while the
-    // assessment is still in DRAFT status.
-    //
-    // Once published, questions are part of a fixed
-    // assessment and should not change.
-    // --------------------------------------------------
+    // Fast-fail before opening a transaction.
     if (assessment.status !== AssessmentStatus.DRAFT) {
       throw new ConflictException(
         'Questions can be deleted only from draft assessments',
       );
     }
 
-    // --------------------------------------------------
-    // Step 4:
-    // Find the question using:
-    // - public question ID
-    // - internal assessment UUID
-    //
-    // This confirms the question actually belongs
-    // to this particular assessment.
-    // --------------------------------------------------
-    const question = await this.prisma.question.findFirst({
-      where: {
-        questionId,
-        assessmentId: assessment.id,
-      },
-      select: {
-        id: true,
-        questionId: true,
-        order: true,
-        marks: true,
-      },
-    });
+    return this.runSerializableTransaction(async (tx) => {
+      // Re-check DRAFT status inside the transaction so delete cannot race
+      // with publishing.
+      const draftAssessment = await tx.assessment.findFirst({
+        where: {
+          id: assessment.id,
+          teacherId: teacherUserId,
+          status: AssessmentStatus.DRAFT,
+        },
+        select: {
+          id: true,
+        },
+      });
 
-    // --------------------------------------------------
-    // Step 5:
-    // Question does not exist in this assessment.
-    // --------------------------------------------------
-    if (!question) {
-      throw new NotFoundException('Question not found');
-    }
+      if (!draftAssessment) {
+        throw new ConflictException(
+          'Questions can be deleted only from draft assessments',
+        );
+      }
 
-    // --------------------------------------------------
-    // Step 6:
-    // Delete + reorder + recalculate marks should all
-    // succeed together.
-    //
-    // A transaction prevents inconsistent data.
-    //
-    // Example:
-    // If deletion succeeds but marks update fails,
-    // Prisma rolls everything back.
-    // --------------------------------------------------
-    return this.prisma.$transaction(async (tx) => {
-      // ------------------------------------------------
-      // Step 7:
-      // Permanently delete the question.
-      //
-      // We decided hard deletion is safe because
-      // deletion is allowed only while assessment
-      // status is DRAFT.
-      // ------------------------------------------------
+      // Find the question inside the same transaction that performs the
+      // delete. This avoids a stale pre-transaction lookup and prevents
+      // P2025 when another request deletes the row first.
+      const question = await tx.question.findFirst({
+        where: {
+          questionId,
+          assessmentId: assessment.id,
+        },
+        select: {
+          id: true,
+          questionId: true,
+          order: true,
+        },
+      });
+
+      if (!question) {
+        throw new NotFoundException('Question not found');
+      }
+
       await tx.question.delete({
         where: {
           id: question.id,
         },
       });
 
-      // ------------------------------------------------
-      // Step 8:
-      // Reorder every question that appeared after
-      // the deleted question.
-      //
-      // Example:
-      //
-      // Before:
-      // 1, 2, 3, 4, 5
-      //
-      // Delete 3
-      //
-      // Questions 4 and 5 are greater than 3,
-      // so decrement them:
-      //
-      // 4 -> 3
-      // 5 -> 4
-      // ------------------------------------------------
+      // Keep remaining orders contiguous after deletion.
       await tx.question.updateMany({
         where: {
           assessmentId: assessment.id,
@@ -840,22 +814,11 @@ export class QuestionsService {
         },
       });
 
-      // ------------------------------------------------
-      // Step 9:
-      // Recalculate the derived total using the shared helper.
-      // ------------------------------------------------
       const maximumMarks = await this.recalculateMaximumMarks(
         tx,
         assessment.id,
       );
 
-      // ------------------------------------------------
-      // Step 10:
-      // Return a simple response.
-      //
-      // We don't return the deleted question because
-      // it no longer exists in the database.
-      // ------------------------------------------------
       return {
         message: 'Question deleted successfully',
         deletedQuestionId: question.questionId,
@@ -869,166 +832,160 @@ export class QuestionsService {
     assessmentId: string,
     dto: ReorderQuestionsDto,
   ) {
-    // Step 1:
-    // Reuse the shared ownership lookup.
+    // Step 1: Verify ownership.
     const assessment = await this.findOwnedAssessment(
       teacherUserId,
       assessmentId,
     );
 
+    // Fast-fail before opening a transaction.
     if (assessment.status !== AssessmentStatus.DRAFT) {
       throw new ConflictException(
         'Questions can be reordered only in draft assessments',
       );
     }
 
-    // Read, validate and write the reorder against one
-    // serializable transaction snapshot.
-    return this.prisma.$transaction(
-      async (tx) => {
-        // Re-check status inside the transaction so a concurrent
-        // publish cannot race with the reorder operation.
-        const draftAssessment = await tx.assessment.findFirst({
+    // Read, validate and write against one SERIALIZABLE transaction snapshot.
+    return this.runSerializableTransaction(async (tx) => {
+      const draftAssessment = await tx.assessment.findFirst({
+        where: {
+          id: assessment.id,
+          teacherId: teacherUserId,
+          status: AssessmentStatus.DRAFT,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (!draftAssessment) {
+        throw new ConflictException(
+          'Questions can be reordered only in draft assessments',
+        );
+      }
+
+      // Fetch inside the transaction so validation and writes use the same
+      // question set.
+      const existingQuestions = await tx.question.findMany({
+        where: {
+          assessmentId: assessment.id,
+        },
+        select: {
+          id: true,
+          questionId: true,
+          order: true,
+        },
+      });
+
+      if (dto.questions.length !== existingQuestions.length) {
+        throw new BadRequestException(
+          'All assessment questions must be included when reordering',
+        );
+      }
+
+      const questionIds = dto.questions.map((item) => item.questionId);
+
+      if (new Set(questionIds).size !== questionIds.length) {
+        throw new BadRequestException('Question IDs must be unique');
+      }
+
+      const orders = dto.questions.map((item) => item.order);
+
+      if (new Set(orders).size !== orders.length) {
+        throw new BadRequestException(
+          'Question order values must be unique',
+        );
+      }
+
+      const sortedOrders = [...orders].sort((a, b) => a - b);
+
+      for (let index = 0; index < sortedOrders.length; index++) {
+        if (sortedOrders[index] !== index + 1) {
+          throw new BadRequestException(
+            'Question order values must be sequential starting from 1',
+          );
+        }
+      }
+
+      const existingQuestionIds = new Set(
+        existingQuestions.map((question) => question.questionId),
+      );
+
+      for (const item of dto.questions) {
+        if (!existingQuestionIds.has(item.questionId)) {
+          throw new NotFoundException(
+            `Question ${item.questionId} not found`,
+          );
+        }
+      }
+
+      // Two-phase updates avoid collisions with:
+      // @@unique([assessmentId, order])
+      //
+      // We intentionally keep the Prisma implementation for MVP-sized
+      // assessments instead of introducing raw SQL.
+      const temporaryOffset = 100000;
+
+      for (let index = 0; index < existingQuestions.length; index++) {
+        const question = existingQuestions[index];
+
+        await tx.question.update({
           where: {
-            id: assessment.id,
-            teacherId: teacherUserId,
-            status: AssessmentStatus.DRAFT,
+            id: question.id,
           },
-          select: {
-            id: true,
+          data: {
+            order: temporaryOffset + index + 1,
           },
         });
+      }
 
-        if (!draftAssessment) {
-          throw new ConflictException(
-            'Questions can be reordered only in draft assessments',
-          );
-        }
+      const questionsByPublicId = new Map(
+        existingQuestions.map((question) => [
+          question.questionId,
+          question,
+        ]),
+      );
 
-        // Fetch the current question set inside the same transaction
-        // used for validation and writes.
-        const existingQuestions = await tx.question.findMany({
-          where: {
-            assessmentId: assessment.id,
-          },
-          select: {
-            id: true,
-            questionId: true,
-            order: true,
-          },
-        });
-
-        if (dto.questions.length !== existingQuestions.length) {
-          throw new BadRequestException(
-            'All assessment questions must be included when reordering',
-          );
-        }
-
-        const questionIds = dto.questions.map((item) => item.questionId);
-
-        if (new Set(questionIds).size !== questionIds.length) {
-          throw new BadRequestException('Question IDs must be unique');
-        }
-
-        const orders = dto.questions.map((item) => item.order);
-
-        if (new Set(orders).size !== orders.length) {
-          throw new BadRequestException(
-            'Question order values must be unique',
-          );
-        }
-
-        const sortedOrders = [...orders].sort((a, b) => a - b);
-
-        for (let index = 0; index < sortedOrders.length; index++) {
-          if (sortedOrders[index] !== index + 1) {
-            throw new BadRequestException(
-              'Question order values must be sequential starting from 1',
-            );
-          }
-        }
-
-        const existingQuestionIds = new Set(
-          existingQuestions.map((question) => question.questionId),
+      for (const item of dto.questions) {
+        const existingQuestion = questionsByPublicId.get(
+          item.questionId,
         );
 
-        for (const item of dto.questions) {
-          if (!existingQuestionIds.has(item.questionId)) {
-            throw new NotFoundException(
-              `Question ${item.questionId} not found`,
-            );
-          }
+        if (!existingQuestion) {
+          throw new NotFoundException('Question not found');
         }
 
-        // Preserve the two-phase update to avoid collisions with
-        // @@unique([assessmentId, order]). For current assessment
-        // sizes this is clearer and safer than raw SQL.
-        const temporaryOffset = 100000;
-
-        for (let index = 0; index < existingQuestions.length; index++) {
-          const question = existingQuestions[index];
-
-          await tx.question.update({
-            where: {
-              id: question.id,
-            },
-            data: {
-              order: temporaryOffset + index + 1,
-            },
-          });
-        }
-
-        const questionsByPublicId = new Map(
-          existingQuestions.map((question) => [
-            question.questionId,
-            question,
-          ]),
-        );
-
-        for (const item of dto.questions) {
-          const existingQuestion = questionsByPublicId.get(item.questionId);
-
-          // This is guaranteed by the validation above but keeps
-          // the write path type-safe.
-          if (!existingQuestion) {
-            throw new NotFoundException('Question not found');
-          }
-
-          await tx.question.update({
-            where: {
-              id: existingQuestion.id,
-            },
-            data: {
-              order: item.order,
-            },
-          });
-        }
-
-        const reorderedQuestions = await tx.question.findMany({
+        await tx.question.update({
           where: {
-            assessmentId: assessment.id,
+            id: existingQuestion.id,
           },
-          orderBy: {
-            order: 'asc',
-          },
-          select: {
-            questionId: true,
-            type: true,
-            prompt: true,
-            marks: true,
-            order: true,
+          data: {
+            order: item.order,
           },
         });
+      }
 
-        return {
-          message: 'Questions reordered successfully',
-          questions: reorderedQuestions,
-        };
-      },
-      {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      },
-    );
+      const reorderedQuestions = await tx.question.findMany({
+        where: {
+          assessmentId: assessment.id,
+        },
+        orderBy: {
+          order: 'asc',
+        },
+        select: {
+          questionId: true,
+          type: true,
+          prompt: true,
+          marks: true,
+          order: true,
+        },
+      });
+
+      return {
+        message: 'Questions reordered successfully',
+        questions: reorderedQuestions,
+      };
+    });
   }
 
 }

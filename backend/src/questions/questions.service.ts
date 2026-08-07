@@ -802,4 +802,210 @@ async findOneForTeacher(
     question,
   };
 }
+
+async deleteForTeacher(
+  teacherUserId: string,
+  assessmentId: string,
+  questionId: string,
+) {
+  // --------------------------------------------------
+  // Step 1:
+  // Find the assessment using:
+  // - the public assessment ID from the URL
+  // - the logged-in teacher ID from the JWT
+  //
+  // This confirms that the teacher owns the assessment.
+  // --------------------------------------------------
+  const assessment =
+    await this.prisma.assessment.findFirst({
+      where: {
+        assessmentId,
+        teacherId: teacherUserId,
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+
+  // --------------------------------------------------
+  // Step 2:
+  // Return 404 if:
+  // - the assessment does not exist
+  // - the assessment belongs to another teacher
+  //
+  // We intentionally use the same response for both.
+  // --------------------------------------------------
+  if (!assessment) {
+    throw new NotFoundException(
+      'Assessment not found',
+    );
+  }
+
+  // --------------------------------------------------
+  // Step 3:
+  // Questions can only be deleted while the
+  // assessment is still in DRAFT status.
+  //
+  // Once published, questions are part of a fixed
+  // assessment and should not change.
+  // --------------------------------------------------
+  if (
+    assessment.status !==
+    AssessmentStatus.DRAFT
+  ) {
+    throw new ConflictException(
+      'Questions can be deleted only from draft assessments',
+    );
+  }
+
+  // --------------------------------------------------
+  // Step 4:
+  // Find the question using:
+  // - public question ID
+  // - internal assessment UUID
+  //
+  // This confirms the question actually belongs
+  // to this particular assessment.
+  // --------------------------------------------------
+  const question =
+    await this.prisma.question.findFirst({
+      where: {
+        questionId,
+        assessmentId: assessment.id,
+      },
+      select: {
+        id: true,
+        questionId: true,
+        order: true,
+        marks: true,
+      },
+    });
+
+  // --------------------------------------------------
+  // Step 5:
+  // Question does not exist in this assessment.
+  // --------------------------------------------------
+  if (!question) {
+    throw new NotFoundException(
+      'Question not found',
+    );
+  }
+
+  // --------------------------------------------------
+  // Step 6:
+  // Delete + reorder + recalculate marks should all
+  // succeed together.
+  //
+  // A transaction prevents inconsistent data.
+  //
+  // Example:
+  // If deletion succeeds but marks update fails,
+  // Prisma rolls everything back.
+  // --------------------------------------------------
+  return this.prisma.$transaction(async (tx) => {
+    // ------------------------------------------------
+    // Step 7:
+    // Permanently delete the question.
+    //
+    // We decided hard deletion is safe because
+    // deletion is allowed only while assessment
+    // status is DRAFT.
+    // ------------------------------------------------
+    await tx.question.delete({
+      where: {
+        id: question.id,
+      },
+    });
+
+    // ------------------------------------------------
+    // Step 8:
+    // Reorder every question that appeared after
+    // the deleted question.
+    //
+    // Example:
+    //
+    // Before:
+    // 1, 2, 3, 4, 5
+    //
+    // Delete 3
+    //
+    // Questions 4 and 5 are greater than 3,
+    // so decrement them:
+    //
+    // 4 -> 3
+    // 5 -> 4
+    // ------------------------------------------------
+    await tx.question.updateMany({
+      where: {
+        assessmentId: assessment.id,
+        order: {
+          gt: question.order,
+        },
+      },
+      data: {
+        order: {
+          decrement: 1,
+        },
+      },
+    });
+
+    // ------------------------------------------------
+    // Step 9:
+    // Calculate the new sum of marks for all
+    // remaining questions.
+    //
+    // Example:
+    //
+    // Before:
+    // 2 + 5 + 5 = 12
+    //
+    // Delete the 2-mark question:
+    // 5 + 5 = 10
+    // ------------------------------------------------
+    const marksResult =
+      await tx.question.aggregate({
+        where: {
+          assessmentId: assessment.id,
+        },
+        _sum: {
+          marks: true,
+        },
+      });
+
+    // If there are no questions left,
+    // Prisma returns null for the sum.
+    //
+    // In that case maximumMarks becomes 0.
+    const maximumMarks =
+      marksResult._sum.marks ?? 0;
+
+    // ------------------------------------------------
+    // Step 10:
+    // Keep Assessment.maximumMarks synchronized
+    // with the remaining questions.
+    // ------------------------------------------------
+    await tx.assessment.update({
+      where: {
+        id: assessment.id,
+      },
+      data: {
+        maximumMarks,
+      },
+    });
+
+    // ------------------------------------------------
+    // Step 11:
+    // Return a simple response.
+    //
+    // We don't return the deleted question because
+    // it no longer exists in the database.
+    // ------------------------------------------------
+    return {
+      message: 'Question deleted successfully',
+      deletedQuestionId: question.questionId,
+      maximumMarks,
+    };
+  });
+}
 }

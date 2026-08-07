@@ -5,6 +5,7 @@ import {
   Param,
   Post,
   Patch,
+  Delete,
   UseGuards,
 } from '@nestjs/common';
 
@@ -83,6 +84,19 @@ getQuestion(
   @Param('questionId') questionId: string,
 ) {
   return this.questionsService.findOneForTeacher(
+    user.sub,
+    assessmentId,
+    questionId,
+  );
+}
+
+@Delete(':questionId')
+deleteQuestion(
+  @CurrentUser() user: JwtPayload,
+  @Param('assessmentId') assessmentId: string,
+  @Param('questionId') questionId: string,
+) {
+  return this.questionsService.deleteForTeacher(
     user.sub,
     assessmentId,
     questionId,

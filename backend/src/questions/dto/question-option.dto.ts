@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -5,20 +6,17 @@ import {
 } from 'class-validator';
 
 export class QuestionOptionDto {
-  /**
-   * Public option label.
-   *
-   * Examples:
-   * A, B, C, D
-   */
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
   @IsNotEmpty()
   @Length(1, 10)
   id!: string;
 
-  /**
-   * Text shown to the student.
-   */
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
   @IsNotEmpty()
   @Length(1, 500)

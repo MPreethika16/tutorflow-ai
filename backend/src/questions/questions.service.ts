@@ -1041,4 +1041,293 @@ export class QuestionsService {
       };
     });
   }
+  
+  async publishForTeacher(
+  teacherUserId: string,
+  assessmentId: string,
+) {
+  // --------------------------------------------------
+  // Step 1:
+  // Find the assessment using:
+  // - public assessment ID from the URL
+  // - teacher ID from the JWT
+  //
+  // This is the ownership check.
+  // --------------------------------------------------
+  const assessment =
+    await this.prisma.assessment.findFirst({
+      where: {
+        assessmentId,
+        teacherId: teacherUserId,
+      },
+      select: {
+        id: true,
+        assessmentId: true,
+        title: true,
+        description: true,
+        board: true,
+        grade: true,
+        subject: true,
+        durationMinutes: true,
+        instructions: true,
+        maximumMarks: true,
+        startAt: true,
+        endAt: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+  // --------------------------------------------------
+  // Step 2:
+  // Return 404 when:
+  // - assessment does not exist
+  // - assessment belongs to another teacher
+  // --------------------------------------------------
+  if (!assessment) {
+    throw new NotFoundException(
+      'Assessment not found',
+    );
+  }
+
+  // --------------------------------------------------
+  // Step 3:
+  // Only DRAFT assessments can be published.
+  //
+  // PUBLISHED, CLOSED and ARCHIVED assessments
+  // cannot go through publish again.
+  // --------------------------------------------------
+  if (
+    assessment.status !==
+    AssessmentStatus.DRAFT
+  ) {
+    throw new ConflictException(
+      'Only draft assessments can be published',
+    );
+  }
+
+  // --------------------------------------------------
+  // Step 4:
+  // Duration is required before publishing.
+  // --------------------------------------------------
+  if (
+    !assessment.durationMinutes ||
+    assessment.durationMinutes <= 0
+  ) {
+    throw new BadRequestException(
+      'Assessment duration is required before publishing',
+    );
+  }
+
+  // --------------------------------------------------
+  // Step 5:
+  // Both schedule values must exist.
+  // --------------------------------------------------
+  if (
+    !assessment.startAt ||
+    !assessment.endAt
+  ) {
+    throw new BadRequestException(
+      'Assessment start and end time are required before publishing',
+    );
+  }
+
+  // --------------------------------------------------
+  // Step 6:
+  // End time must be later than start time.
+  // --------------------------------------------------
+  if (
+    assessment.endAt <= assessment.startAt
+  ) {
+    throw new BadRequestException(
+      'Assessment end time must be later than start time',
+    );
+  }
+
+  // --------------------------------------------------
+  // Step 7:
+  // Fetch all questions belonging to this assessment.
+  //
+  // We need them to validate:
+  // - question count
+  // - marks
+  // - ordering
+  // --------------------------------------------------
+  const questions =
+    await this.prisma.question.findMany({
+      where: {
+        assessmentId: assessment.id,
+      },
+      select: {
+        questionId: true,
+        marks: true,
+        order: true,
+        type: true,
+        options: true,
+        correctOption: true,
+        modelAnswer: true,
+      },
+      orderBy: {
+        order: 'asc',
+      },
+    });
+
+  // --------------------------------------------------
+  // Step 8:
+  // An empty assessment cannot be published.
+  // --------------------------------------------------
+  if (questions.length === 0) {
+    throw new BadRequestException(
+      'Assessment must contain at least one question before publishing',
+    );
+  }
+
+  // --------------------------------------------------
+  // Step 9:
+  // Every question must have marks greater than 0.
+  //
+  // DTO validation should already guarantee this during
+  // normal creation, but publish is the final safety gate.
+  // --------------------------------------------------
+  const invalidMarksQuestion =
+    questions.find(
+      (question) => question.marks <= 0,
+    );
+
+  if (invalidMarksQuestion) {
+    throw new BadRequestException(
+      `Question ${invalidMarksQuestion.questionId} must have marks greater than 0`,
+    );
+  }
+
+  // --------------------------------------------------
+  // Step 10:
+  // maximumMarks must also be valid.
+  //
+  // This protects against inconsistent database state.
+  // --------------------------------------------------
+  if (assessment.maximumMarks <= 0) {
+    throw new BadRequestException(
+      'Assessment maximum marks must be greater than 0 before publishing',
+    );
+  }
+
+  // --------------------------------------------------
+  // Step 11:
+  // Question ordering must be:
+  //
+  // 1, 2, 3, ..., N
+  //
+  // No duplicates and no gaps.
+  // --------------------------------------------------
+  for (
+    let index = 0;
+    index < questions.length;
+    index++
+  ) {
+    const expectedOrder = index + 1;
+
+    if (
+      questions[index].order !==
+      expectedOrder
+    ) {
+      throw new BadRequestException(
+        'Question order is invalid. Questions must be sequential starting from 1',
+      );
+    }
+  }
+
+  // --------------------------------------------------
+  // Step 12:
+  // Optional but recommended:
+  // Validate type-specific question integrity again.
+  //
+  // This prevents publishing corrupted question data.
+  // --------------------------------------------------
+  for (const question of questions) {
+    if (question.type === QuestionType.MCQ) {
+      const options =
+        question.options as
+          | Array<{
+              id: string;
+              text: string;
+            }>
+          | null;
+
+      if (!options || options.length !== 4) {
+        throw new BadRequestException(
+          `MCQ question ${question.questionId} must contain exactly four options`,
+        );
+      }
+
+      if (!question.correctOption) {
+        throw new BadRequestException(
+          `MCQ question ${question.questionId} must have a correct option`,
+        );
+      }
+
+      const normalizedIds =
+        options.map((option) =>
+          option.id.trim().toUpperCase(),
+        );
+
+      if (
+        !normalizedIds.includes(
+          question.correctOption
+            .trim()
+            .toUpperCase(),
+        )
+      ) {
+        throw new BadRequestException(
+          `MCQ question ${question.questionId} has an invalid correct option`,
+        );
+      }
+    }
+
+    if (
+      question.type === QuestionType.TYPED ||
+      question.type === QuestionType.VOICE
+    ) {
+      if (!question.modelAnswer?.trim()) {
+        throw new BadRequestException(
+          `Question ${question.questionId} requires a model answer before publishing`,
+        );
+      }
+    }
+  }
+
+  // --------------------------------------------------
+  // Step 13:
+  // All readiness checks passed.
+  //
+  // Perform the state transition:
+  //
+  // DRAFT -> PUBLISHED
+  // --------------------------------------------------
+  return this.prisma.assessment.update({
+    where: {
+      id: assessment.id,
+    },
+    data: {
+      status: AssessmentStatus.PUBLISHED,
+    },
+    select: {
+      assessmentId: true,
+      title: true,
+      description: true,
+      board: true,
+      grade: true,
+      subject: true,
+      durationMinutes: true,
+      instructions: true,
+      maximumMarks: true,
+      startAt: true,
+      endAt: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+}
 }

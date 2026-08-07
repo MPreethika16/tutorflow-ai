@@ -1,11 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
-  Post,
   Patch,
-  Delete,
+  Post,
   UseGuards,
 } from '@nestjs/common';
 
@@ -17,57 +17,55 @@ import type { JwtPayload } from '../auth/types/jwt-payload.type';
 import { UserRole } from '../generated/prisma/client';
 
 import { CreateQuestionDto } from './dto/create-question.dto';
-import { QuestionsService } from './questions.service';
 import { ReorderQuestionsDto } from './dto/reorder-questions.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
+import { QuestionsService } from './questions.service';
 
 @Controller('assessments/:assessmentId/questions')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.TEACHER)
 export class QuestionsController {
-  constructor(private readonly questionsService: QuestionsService) {}
+  constructor(
+    private readonly questionsService: QuestionsService,
+  ) {}
 
-  /**
-   * Creates a question inside an owned draft assessment.
-   */
   @Post()
   createQuestion(
     @CurrentUser() user: JwtPayload,
     @Param('assessmentId') assessmentId: string,
     @Body() dto: CreateQuestionDto,
   ) {
-    return this.questionsService.createForTeacher(user.sub, assessmentId, dto);
+    return this.questionsService.createForTeacher(
+      user.sub,
+      assessmentId,
+      dto,
+    );
   }
 
-  /**
-   * Lists every question belonging to an owned assessment.
-   *
-   * Questions are returned according to their saved order.
-   */
   @Get()
   listQuestions(
     @CurrentUser() user: JwtPayload,
     @Param('assessmentId') assessmentId: string,
   ) {
-    return this.questionsService.findAllForTeacher(user.sub, assessmentId);
+    return this.questionsService.findAllForTeacher(
+      user.sub,
+      assessmentId,
+    );
   }
 
   @Patch('reorder')
-reorderQuestions(
-  @CurrentUser() user: JwtPayload,
-  @Param('assessmentId') assessmentId: string,
-  @Body() dto: ReorderQuestionsDto,
-) {
-  return this.questionsService.reorderForTeacher(
-    user.sub,
-    assessmentId,
-    dto,
-  );
-}
+  reorderQuestions(
+    @CurrentUser() user: JwtPayload,
+    @Param('assessmentId') assessmentId: string,
+    @Body() dto: ReorderQuestionsDto,
+  ) {
+    return this.questionsService.reorderForTeacher(
+      user.sub,
+      assessmentId,
+      dto,
+    );
+  }
 
-  /**
-   * Updates one question inside an owned draft assessment.
-   */
   @Patch(':questionId')
   updateQuestion(
     @CurrentUser() user: JwtPayload,
@@ -108,6 +106,4 @@ reorderQuestions(
       questionId,
     );
   }
-
-  
 }

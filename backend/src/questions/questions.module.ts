@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 
 import { AuthModule } from '../auth/auth.module';
-
 import { QuestionsController } from './questions.controller';
 import { QuestionsService } from './questions.service';
 

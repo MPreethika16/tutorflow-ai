@@ -17,20 +17,25 @@ import { generateQuestionId } from './utils/question.util';
 
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { ReorderQuestionsDto } from './dto/reorder-questions.dto';
+
 @Injectable()
 export class QuestionsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createForTeacher(
+  /**
+   * Finds an assessment owned by the logged-in teacher.
+   *
+   * We intentionally return 404 for both:
+   * - assessment does not exist
+   * - assessment belongs to another teacher
+   *
+   * This keeps ownership checks consistent across every
+   * question endpoint and avoids exposing another teacher's data.
+   */
+  private async findOwnedAssessment(
     teacherUserId: string,
     assessmentId: string,
-    dto: CreateQuestionDto,
   ) {
-    // Step 1:
-    // Find the assessment using both its public ID and
-    // the logged-in teacher's ID.
-    //
-    // This performs the ownership check.
     const assessment = await this.prisma.assessment.findFirst({
       where: {
         assessmentId,
@@ -38,16 +43,65 @@ export class QuestionsService {
       },
       select: {
         id: true,
+        assessmentId: true,
+        title: true,
         status: true,
+        maximumMarks: true,
       },
     });
 
-    // Covers both cases:
-    // - assessment does not exist
-    // - assessment belongs to another teacher
     if (!assessment) {
       throw new NotFoundException('Assessment not found');
     }
+
+    return assessment;
+  }
+
+  /**
+   * Recalculates Assessment.maximumMarks from the current
+   * questions inside the same transaction as the write.
+   *
+   * This helper is reused by create, update and delete so the
+   * derived total cannot drift because of duplicated logic.
+   */
+  private async recalculateMaximumMarks(
+    tx: Prisma.TransactionClient,
+    assessmentDbId: string,
+  ): Promise<number> {
+    const marksResult = await tx.question.aggregate({
+      where: {
+        assessmentId: assessmentDbId,
+      },
+      _sum: {
+        marks: true,
+      },
+    });
+
+    const maximumMarks = marksResult._sum.marks ?? 0;
+
+    await tx.assessment.update({
+      where: {
+        id: assessmentDbId,
+      },
+      data: {
+        maximumMarks,
+      },
+    });
+
+    return maximumMarks;
+  }
+
+  async createForTeacher(
+    teacherUserId: string,
+    assessmentId: string,
+    dto: CreateQuestionDto,
+  ) {
+    // Step 1:
+    // Reuse the shared ownership lookup.
+    const assessment = await this.findOwnedAssessment(
+      teacherUserId,
+      assessmentId,
+    );
 
     // Step 2:
     // Questions can be changed only while the
@@ -147,29 +201,11 @@ export class QuestionsService {
       });
 
       // Step 6:
-      // Recalculate the total marks from all questions.
-      //
-      // The frontend never directly controls
-      // Assessment.maximumMarks.
-      const marksResult = await tx.question.aggregate({
-        where: {
-          assessmentId: assessment.id,
-        },
-        _sum: {
-          marks: true,
-        },
-      });
-
-      const maximumMarks = marksResult._sum.marks ?? 0;
-
-      await tx.assessment.update({
-        where: {
-          id: assessment.id,
-        },
-        data: {
-          maximumMarks,
-        },
-      });
+      // Recalculate the derived total using the shared helper.
+      const maximumMarks = await this.recalculateMaximumMarks(
+        tx,
+        assessment.id,
+      );
 
       // Return both the created question and the updated
       // assessment total so the frontend can refresh its UI.
@@ -284,34 +320,11 @@ export class QuestionsService {
 
   async findAllForTeacher(teacherUserId: string, assessmentId: string) {
     // Step 1:
-    // Find the assessment using both:
-    // - public assessment ID from the route
-    // - teacher UUID from the JWT
-    //
-    // This is the ownership check.
-    const assessment = await this.prisma.assessment.findFirst({
-      where: {
-        assessmentId,
-        teacherId: teacherUserId,
-      },
-      select: {
-        id: true,
-        assessmentId: true,
-        title: true,
-        status: true,
-        maximumMarks: true,
-      },
-    });
-
-    // Step 2:
-    // Return the same 404 response when:
-    // - the assessment does not exist
-    // - the assessment belongs to another teacher
-    //
-    // This avoids exposing another teacher's data.
-    if (!assessment) {
-      throw new NotFoundException('Assessment not found');
-    }
+    // Reuse the shared ownership lookup.
+    const assessment = await this.findOwnedAssessment(
+      teacherUserId,
+      assessmentId,
+    );
 
     // Step 3:
     // Fetch all questions that belong to the assessment.
@@ -371,27 +384,11 @@ export class QuestionsService {
     dto: UpdateQuestionDto,
   ) {
     // Step 1:
-    // Find the assessment using its public ID and the
-    // logged-in teacher's ID.
-    //
-    // This performs the ownership check.
-    const assessment = await this.prisma.assessment.findFirst({
-      where: {
-        assessmentId,
-        teacherId: teacherUserId,
-      },
-      select: {
-        id: true,
-        status: true,
-      },
-    });
-
-    // Covers:
-    // - assessment does not exist
-    // - assessment belongs to another teacher
-    if (!assessment) {
-      throw new NotFoundException('Assessment not found');
-    }
+    // Reuse the shared ownership lookup.
+    const assessment = await this.findOwnedAssessment(
+      teacherUserId,
+      assessmentId,
+    );
 
     // Step 2:
     // Questions may be changed only while the parent
@@ -517,26 +514,11 @@ export class QuestionsService {
         },
       });
 
-      // Recalculate the total marks after the question update.
-      const marksResult = await tx.question.aggregate({
-        where: {
-          assessmentId: assessment.id,
-        },
-        _sum: {
-          marks: true,
-        },
-      });
-
-      const maximumMarks = marksResult._sum.marks ?? 0;
-
-      await tx.assessment.update({
-        where: {
-          id: assessment.id,
-        },
-        data: {
-          maximumMarks,
-        },
-      });
+      // Recalculate the derived total using the shared helper.
+      const maximumMarks = await this.recalculateMaximumMarks(
+        tx,
+        assessment.id,
+      );
 
       return {
         question: updatedQuestion,
@@ -658,27 +640,11 @@ export class QuestionsService {
     questionId: string,
   ) {
     // Step 1:
-    // Find the owned assessment using the public assessment ID
-    // and the teacher UUID from the JWT.
-    const assessment = await this.prisma.assessment.findFirst({
-      where: {
-        assessmentId,
-        teacherId: teacherUserId,
-      },
-      select: {
-        id: true,
-        assessmentId: true,
-        title: true,
-        status: true,
-        maximumMarks: true,
-      },
-    });
-
-    // Return the same 404 when the assessment is missing
-    // or owned by another teacher.
-    if (!assessment) {
-      throw new NotFoundException('Assessment not found');
-    }
+    // Reuse the shared ownership lookup.
+    const assessment = await this.findOwnedAssessment(
+      teacherUserId,
+      assessmentId,
+    );
 
     // Step 2:
     // Find the question using both:
@@ -732,34 +698,12 @@ export class QuestionsService {
   ) {
     // --------------------------------------------------
     // Step 1:
-    // Find the assessment using:
-    // - the public assessment ID from the URL
-    // - the logged-in teacher ID from the JWT
-    //
-    // This confirms that the teacher owns the assessment.
+    // Reuse the shared ownership lookup.
     // --------------------------------------------------
-    const assessment = await this.prisma.assessment.findFirst({
-      where: {
-        assessmentId,
-        teacherId: teacherUserId,
-      },
-      select: {
-        id: true,
-        status: true,
-      },
-    });
-
-    // --------------------------------------------------
-    // Step 2:
-    // Return 404 if:
-    // - the assessment does not exist
-    // - the assessment belongs to another teacher
-    //
-    // We intentionally use the same response for both.
-    // --------------------------------------------------
-    if (!assessment) {
-      throw new NotFoundException('Assessment not found');
-    }
+    const assessment = await this.findOwnedAssessment(
+      teacherUserId,
+      assessmentId,
+    );
 
     // --------------------------------------------------
     // Step 3:
@@ -865,48 +809,15 @@ export class QuestionsService {
 
       // ------------------------------------------------
       // Step 9:
-      // Calculate the new sum of marks for all
-      // remaining questions.
-      //
-      // Example:
-      //
-      // Before:
-      // 2 + 5 + 5 = 12
-      //
-      // Delete the 2-mark question:
-      // 5 + 5 = 10
+      // Recalculate the derived total using the shared helper.
       // ------------------------------------------------
-      const marksResult = await tx.question.aggregate({
-        where: {
-          assessmentId: assessment.id,
-        },
-        _sum: {
-          marks: true,
-        },
-      });
-
-      // If there are no questions left,
-      // Prisma returns null for the sum.
-      //
-      // In that case maximumMarks becomes 0.
-      const maximumMarks = marksResult._sum.marks ?? 0;
+      const maximumMarks = await this.recalculateMaximumMarks(
+        tx,
+        assessment.id,
+      );
 
       // ------------------------------------------------
       // Step 10:
-      // Keep Assessment.maximumMarks synchronized
-      // with the remaining questions.
-      // ------------------------------------------------
-      await tx.assessment.update({
-        where: {
-          id: assessment.id,
-        },
-        data: {
-          maximumMarks,
-        },
-      });
-
-      // ------------------------------------------------
-      // Step 11:
       // Return a simple response.
       //
       // We don't return the deleted question because
@@ -927,33 +838,15 @@ export class QuestionsService {
   ) {
     // --------------------------------------------------
     // Step 1:
-    // Find the assessment using:
-    // - public assessment ID from URL
-    // - teacher ID from JWT
-    //
-    // This confirms ownership.
+    // Reuse the shared ownership lookup.
     // --------------------------------------------------
-    const assessment = await this.prisma.assessment.findFirst({
-      where: {
-        assessmentId,
-        teacherId: teacherUserId,
-      },
-      select: {
-        id: true,
-        status: true,
-      },
-    });
+    const assessment = await this.findOwnedAssessment(
+      teacherUserId,
+      assessmentId,
+    );
 
     // --------------------------------------------------
     // Step 2:
-    // Assessment not found or belongs to another teacher.
-    // --------------------------------------------------
-    if (!assessment) {
-      throw new NotFoundException('Assessment not found');
-    }
-
-    // --------------------------------------------------
-    // Step 3:
     // Questions can only be reordered while the
     // assessment is still DRAFT.
     // --------------------------------------------------
@@ -964,7 +857,7 @@ export class QuestionsService {
     }
 
     // --------------------------------------------------
-    // Step 4:
+    // Step 3:
     // Fetch all current questions for this assessment.
     //
     // We need them to verify:
@@ -984,7 +877,7 @@ export class QuestionsService {
     });
 
     // --------------------------------------------------
-    // Step 5:
+    // Step 4:
     // The frontend must send the full desired order.
     //
     // Example:
@@ -998,7 +891,7 @@ export class QuestionsService {
     }
 
     // --------------------------------------------------
-    // Step 6:
+    // Step 5:
     // Verify question IDs are unique in the request.
     // --------------------------------------------------
     const questionIds = dto.questions.map((item) => item.questionId);
@@ -1008,7 +901,7 @@ export class QuestionsService {
     }
 
     // --------------------------------------------------
-    // Step 7:
+    // Step 6:
     // Verify order values are unique.
     // --------------------------------------------------
     const orders = dto.questions.map((item) => item.order);
@@ -1018,7 +911,7 @@ export class QuestionsService {
     }
 
     // --------------------------------------------------
-    // Step 8:
+    // Step 7:
     // Orders must be sequential:
     //
     // For 3 questions:
@@ -1039,7 +932,7 @@ export class QuestionsService {
     }
 
     // --------------------------------------------------
-    // Step 9:
+    // Step 8:
     // Verify every questionId in the request actually
     // belongs to this assessment.
     // --------------------------------------------------
@@ -1054,7 +947,7 @@ export class QuestionsService {
     }
 
     // --------------------------------------------------
-    // Step 10:
+    // Step 9:
     // Perform the reorder in one transaction.
     //
     // We use TWO phases because of the unique constraint:
@@ -1123,7 +1016,7 @@ export class QuestionsService {
       }
 
       // ------------------------------------------------
-      // Step 11:
+      // Step 10:
       // Return the final ordered list.
       // ------------------------------------------------
       const reorderedQuestions = await tx.question.findMany({

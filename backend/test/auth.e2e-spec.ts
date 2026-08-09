@@ -1,7 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
-
+import { seedTestTeacher } from './utils/seed-test-teacher';
 import { AppModule } from '../src/app.module';
 
 describe('Auth API (e2e)', () => {
@@ -16,6 +16,8 @@ describe('Auth API (e2e)', () => {
     app = moduleFixture.createNestApplication();
 
     await app.init();
+
+    await seedTestTeacher(app);
   });
 
   afterAll(async () => {
@@ -28,8 +30,8 @@ describe('Auth API (e2e)', () => {
     )
       .post('/auth/login')
       .send({
-        email: 'preethika@example.com',
-        password: 'StrongPass123!',
+        email: process.env.TEST_TEACHER_EMAIL,
+        password: process.env.TEST_TEACHER_PASSWORD,
       });
 
     expect(response.status).toBe(200);

@@ -3,7 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 
 import { AppModule } from '../src/app.module';
-
+import { seedTestTeacher } from './utils/seed-test-teacher';
 describe('Assessments API (e2e)', () => {
   let app: INestApplication;
   let teacherToken: string;
@@ -18,18 +18,22 @@ describe('Assessments API (e2e)', () => {
 
     await app.init();
 
+    await seedTestTeacher(app);
+
     // Login once and keep the JWT for protected API tests.
     const loginResponse = await request(
-      app.getHttpServer(),
-    )
-      .post('/auth/login')
-      .send({
-        email: 'preethika@example.com',
-        password: 'StrongPass123!',
-      })
-      .expect(200);
+  app.getHttpServer(),
+)
+  .post('/auth/login')
+  .send({
+    email: process.env.TEST_TEACHER_EMAIL,
+    password:
+      process.env.TEST_TEACHER_PASSWORD,
+  })
+  .expect(200);
 
-    teacherToken = loginResponse.body.accessToken;
+teacherToken =
+  loginResponse.body.accessToken;
   });
 
   afterAll(async () => {

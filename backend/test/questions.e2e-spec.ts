@@ -12,6 +12,37 @@ describe('Questions API (e2e)', () => {
   let mcqQuestionId: string;
   let typedQuestionId: string;
   let voiceQuestionId: string;
+  let publishedQuestionSnapshot: Array<{
+    questionId: string;
+    order: number;
+    prompt: string;
+  }>;
+
+  async function getQuestionSnapshot() {
+  const response = await request(
+    app.getHttpServer(),
+  )
+    .get(
+      `/assessments/${assessmentId}/questions`,
+    )
+    .set(
+      'Authorization',
+      `Bearer ${teacherToken}`,
+    )
+    .expect(200);
+
+  return response.body.questions.map(
+    (question: {
+      questionId: string;
+      order: number;
+      prompt: string;
+    }) => ({
+      questionId: question.questionId,
+      order: question.order,
+      prompt: question.prompt,
+    }),
+  );
+}
 
   beforeAll(async () => {
     const moduleFixture: TestingModule =
@@ -406,7 +437,10 @@ it('reorders all questions successfully', async () => {
   expect(response.body.questions[2].order).toBe(3);
 });
 
-it('rejects duplicate reorder values', async () => {
+it('rejects duplicate reorder values without changing questions', async () => {
+  const before =
+    await getQuestionSnapshot();
+
   await request(app.getHttpServer())
     .patch(
       `/assessments/${assessmentId}/questions/reorder`,
@@ -432,9 +466,16 @@ it('rejects duplicate reorder values', async () => {
       ],
     })
     .expect(400);
+
+  const after =
+    await getQuestionSnapshot();
+
+  expect(after).toEqual(before);
 });
 
-it('rejects reorder when not all questions are included', async () => {
+it('rejects reorder when not all questions are included without changing questions', async () => {
+  const before = await getQuestionSnapshot();
+
   await request(app.getHttpServer())
     .patch(
       `/assessments/${assessmentId}/questions/reorder`,
@@ -456,6 +497,10 @@ it('rejects reorder when not all questions are included', async () => {
       ],
     })
     .expect(400);
+
+  const after = await getQuestionSnapshot();
+
+  expect(after).toEqual(before);
 });
 
 it('deletes a question, reorders remaining questions, and recalculates maximumMarks', async () => {
@@ -542,6 +587,9 @@ it('publishes the assessment successfully', async () => {
   expect(response.body.status).toBe(
     'PUBLISHED',
   );
+
+  publishedQuestionSnapshot =
+    await getQuestionSnapshot();
 });
 
 it('rejects creating a question after publish', async () => {
@@ -613,5 +661,13 @@ it('rejects reordering questions after publish', async () => {
       ],
     })
     .expect(409);
+});
+
+it('keeps questions unchanged after rejected post-publish mutations', async () => {
+  const after = await getQuestionSnapshot();
+
+  expect(after).toEqual(
+    publishedQuestionSnapshot,
+  );
 });
 });

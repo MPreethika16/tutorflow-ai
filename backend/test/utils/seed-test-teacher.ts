@@ -12,19 +12,24 @@ export async function seedTestTeacher(
 ) {
   const prisma = app.get(PrismaService);
 
-  const email =
-    process.env.TEST_TEACHER_EMAIL!
-      .trim()
-      .toLowerCase();
+  const rawEmail =
+  process.env.TEST_TEACHER_EMAIL;
 
-  const password =
-    process.env.TEST_TEACHER_PASSWORD!;
+const password =
+  process.env.TEST_TEACHER_PASSWORD;
 
-  if (!email || !password) {
-    throw new Error(
-      'TEST_TEACHER_EMAIL and TEST_TEACHER_PASSWORD must be configured',
-    );
-  }
+if (
+  !rawEmail?.trim() ||
+  !password
+) {
+  throw new Error(
+    'TEST_TEACHER_EMAIL and TEST_TEACHER_PASSWORD must be configured',
+  );
+}
+
+const email = rawEmail
+  .trim()
+  .toLowerCase();  
 
   // Use exactly the same hashing cost as UsersService.
   const passwordHash = await bcrypt.hash(

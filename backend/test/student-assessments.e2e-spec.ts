@@ -332,6 +332,7 @@ describe('Student Assessments API (e2e)', () => {
 
         select: {
           id: true,
+          assessmentId: true,
         },
       });
 
@@ -1733,4 +1734,547 @@ describe('Student Assessments API (e2e)', () => {
       'Answer before submit.',
     );
   });
+
+  // ==================================================
+  // ISSUE #33 — ENFORCE ASSESSMENT TIMING / ATTEMPT STATE
+  // ==================================================
+
+  it('rejects starting an assessment before startAt', async () => {
+    const now =
+      new Date();
+
+    const assessmentId =
+      uniqueId(
+        'ASM-E2E-UPCOMING',
+      );
+
+    createdAssessmentIds.push(
+      assessmentId,
+    );
+
+    await prisma.assessment.create({
+      data: {
+        assessmentId,
+        teacherId:
+          teacherUserId,
+
+        title:
+          'Upcoming Timing Test',
+
+        board: 'CBSE',
+        grade: '10',
+        subject: 'Science',
+
+        durationMinutes: 30,
+        maximumMarks: 5,
+
+        startAt:
+          new Date(
+            now.getTime() +
+              30 * 60 * 1000,
+          ),
+
+        endAt:
+          new Date(
+            now.getTime() +
+              2 * 60 * 60 * 1000,
+          ),
+
+        status:
+          AssessmentStatus.PUBLISHED,
+
+        questions: {
+          create: {
+            questionId:
+              uniqueId(
+                'QUE-E2E-UPCOMING',
+              ),
+
+            type:
+              QuestionType.TYPED,
+
+            prompt:
+              'Upcoming timing question',
+
+            marks: 5,
+            order: 1,
+
+            modelAnswer:
+              'Example answer.',
+          },
+        },
+      },
+    });
+
+    const response =
+      await request(
+        app.getHttpServer(),
+      )
+        .post(
+          `/student/assessments/${assessmentId}/start`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .expect(409);
+
+    expect(
+      response.body.message,
+    ).toBe(
+      'Assessment has not started yet',
+    );
+  });
+
+  it('rejects starting an assessment after endAt', async () => {
+    const now =
+      new Date();
+
+    const assessmentId =
+      uniqueId(
+        'ASM-E2E-ENDED',
+      );
+
+    createdAssessmentIds.push(
+      assessmentId,
+    );
+
+    await prisma.assessment.create({
+      data: {
+        assessmentId,
+        teacherId:
+          teacherUserId,
+
+        title:
+          'Ended Timing Test',
+
+        board: 'CBSE',
+        grade: '10',
+        subject: 'Science',
+
+        durationMinutes: 30,
+        maximumMarks: 5,
+
+        startAt:
+          new Date(
+            now.getTime() -
+              2 * 60 * 60 * 1000,
+          ),
+
+        endAt:
+          new Date(
+            now.getTime() -
+              60 * 1000,
+          ),
+
+        status:
+          AssessmentStatus.PUBLISHED,
+
+        questions: {
+          create: {
+            questionId:
+              uniqueId(
+                'QUE-E2E-ENDED',
+              ),
+
+            type:
+              QuestionType.TYPED,
+
+            prompt:
+              'Ended timing question',
+
+            marks: 5,
+            order: 1,
+
+            modelAnswer:
+              'Example answer.',
+          },
+        },
+      },
+    });
+
+    const response =
+      await request(
+        app.getHttpServer(),
+      )
+        .post(
+          `/student/assessments/${assessmentId}/start`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .expect(409);
+
+    expect(
+      response.body.message,
+    ).toBe(
+      'Assessment has expired',
+    );
+  });
+
+  it('sets expiresAt from durationMinutes when duration ends before assessment endAt', async () => {
+    const now =
+      new Date();
+
+    const assessmentId =
+      uniqueId(
+        'ASM-E2E-DURATION',
+      );
+
+    createdAssessmentIds.push(
+      assessmentId,
+    );
+
+    await prisma.assessment.create({
+      data: {
+        assessmentId,
+        teacherId:
+          teacherUserId,
+
+        title:
+          'Duration Timing Test',
+
+        board: 'CBSE',
+        grade: '10',
+        subject: 'Science',
+
+        durationMinutes: 30,
+        maximumMarks: 5,
+
+        startAt:
+          new Date(
+            now.getTime() -
+              10 * 60 * 1000,
+          ),
+
+        endAt:
+          new Date(
+            now.getTime() +
+              2 * 60 * 60 * 1000,
+          ),
+
+        status:
+          AssessmentStatus.PUBLISHED,
+
+        questions: {
+          create: {
+            questionId:
+              uniqueId(
+                'QUE-E2E-DURATION',
+              ),
+
+            type:
+              QuestionType.TYPED,
+
+            prompt:
+              'Duration timing question',
+
+            marks: 5,
+            order: 1,
+
+            modelAnswer:
+              'Example answer.',
+          },
+        },
+      },
+    });
+
+    const response =
+      await request(
+        app.getHttpServer(),
+      )
+        .post(
+          `/student/assessments/${assessmentId}/start`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .expect(201);
+
+    const startedAt =
+      new Date(
+        response.body.attempt
+          .startedAt,
+      );
+
+    const expiresAt =
+      new Date(
+        response.body.attempt
+          .expiresAt,
+      );
+
+    expect(
+      expiresAt.getTime() -
+        startedAt.getTime(),
+    ).toBe(
+      30 * 60 * 1000,
+    );
+  });
+
+  it('uses assessment endAt as expiresAt when durationMinutes is null', async () => {
+    const now =
+      new Date();
+
+    const endAt =
+      new Date(
+        now.getTime() +
+          90 * 60 * 1000,
+      );
+
+    const assessmentId =
+      uniqueId(
+        'ASM-E2E-NO-DURATION',
+      );
+
+    createdAssessmentIds.push(
+      assessmentId,
+    );
+
+    await prisma.assessment.create({
+      data: {
+        assessmentId,
+        teacherId:
+          teacherUserId,
+
+        title:
+          'No Duration Timing Test',
+
+        board: 'CBSE',
+        grade: '10',
+        subject: 'Science',
+
+        durationMinutes: null,
+        maximumMarks: 5,
+
+        startAt:
+          new Date(
+            now.getTime() -
+              10 * 60 * 1000,
+          ),
+
+        endAt,
+
+        status:
+          AssessmentStatus.PUBLISHED,
+
+        questions: {
+          create: {
+            questionId:
+              uniqueId(
+                'QUE-E2E-NO-DURATION',
+              ),
+
+            type:
+              QuestionType.TYPED,
+
+            prompt:
+              'No duration timing question',
+
+            marks: 5,
+            order: 1,
+
+            modelAnswer:
+              'Example answer.',
+          },
+        },
+      },
+    });
+
+    const response =
+      await request(
+        app.getHttpServer(),
+      )
+        .post(
+          `/student/assessments/${assessmentId}/start`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .expect(201);
+
+    expect(
+      new Date(
+        response.body.attempt
+          .expiresAt,
+      ).getTime(),
+    ).toBe(
+      endAt.getTime(),
+    );
+  });
+
+  it('caps expiresAt at assessment endAt when duration would run longer', async () => {
+    const now =
+      new Date();
+
+    const endAt =
+      new Date(
+        now.getTime() +
+          5 * 60 * 1000,
+      );
+
+    const assessmentId =
+      uniqueId(
+        'ASM-E2E-CAPPED-DURATION',
+      );
+
+    createdAssessmentIds.push(
+      assessmentId,
+    );
+
+    await prisma.assessment.create({
+      data: {
+        assessmentId,
+        teacherId:
+          teacherUserId,
+
+        title:
+          'Capped Duration Timing Test',
+
+        board: 'CBSE',
+        grade: '10',
+        subject: 'Science',
+
+        durationMinutes: 60,
+        maximumMarks: 5,
+
+        startAt:
+          new Date(
+            now.getTime() -
+              10 * 60 * 1000,
+          ),
+
+        endAt,
+
+        status:
+          AssessmentStatus.PUBLISHED,
+
+        questions: {
+          create: {
+            questionId:
+              uniqueId(
+                'QUE-E2E-CAPPED',
+              ),
+
+            type:
+              QuestionType.TYPED,
+
+            prompt:
+              'Capped duration timing question',
+
+            marks: 5,
+            order: 1,
+
+            modelAnswer:
+              'Example answer.',
+          },
+        },
+      },
+    });
+
+    const response =
+      await request(
+        app.getHttpServer(),
+      )
+        .post(
+          `/student/assessments/${assessmentId}/start`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .expect(201);
+
+    expect(
+      new Date(
+        response.body.attempt
+          .expiresAt,
+      ).getTime(),
+    ).toBe(
+      endAt.getTime(),
+    );
+  });
+
+  it('does not allow an auto-submitted expired attempt to be restarted', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+        {
+          expired: true,
+        },
+      );
+
+    // Reading the expired attempt performs the automatic
+    // IN_PROGRESS -> SUBMITTED transition.
+    const resumeResponse =
+      await request(
+        app.getHttpServer(),
+      )
+        .get(
+          `/student/attempts/${fixture.attempt.attemptId}`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .expect(200);
+
+    expect(
+      resumeResponse.body.attempt
+        .status,
+    ).toBe('SUBMITTED');
+
+    const restartResponse =
+      await request(
+        app.getHttpServer(),
+      )
+        .post(
+          `/student/assessments/${fixture.assessment.assessmentId}/start`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .expect(409);
+
+    expect(
+      restartResponse.body.message,
+    ).toBe(
+      'Assessment already attempted',
+    );
+
+    const persisted =
+      await prisma
+        .assessmentAttempt
+        .findUniqueOrThrow({
+          where: {
+            attemptId:
+              fixture.attempt
+                .attemptId,
+          },
+
+          select: {
+            status: true,
+            submittedAt: true,
+          },
+        });
+
+    expect(
+      persisted.status,
+    ).toBe(
+      AssessmentAttemptStatus.SUBMITTED,
+    );
+
+    expect(
+      persisted.submittedAt
+        ?.getTime(),
+    ).toBe(
+      fixture.attempt
+        .expiresAt
+        .getTime(),
+    );
+  });
+
 });

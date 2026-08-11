@@ -23,8 +23,10 @@ describe('Student Assessments API (e2e)', () => {
   let teacherUserId: string;
   let studentUserId: string;
 
-  const studentEmail =
-    'student-assessments-e2e@test.com';
+  const runId = Date.now();
+
+const studentEmail =
+  `student-assessments-e2e-${runId}@test.com`;
 
   const studentPassword =
     'StudentTest123!';
@@ -85,23 +87,7 @@ describe('Student Assessments API (e2e)', () => {
 
     // Remove an older version of this fixture
     // if a previous test run left it behind.
-    const existingStudentUser =
-      await prisma.user.findUnique({
-        where: {
-          email: studentEmail,
-        },
-        select: {
-          id: true,
-        },
-      });
-
-    if (existingStudentUser) {
-      await prisma.user.delete({
-        where: {
-          id: existingStudentUser.id,
-        },
-      });
-    }
+   
 
     const studentUser =
       await prisma.user.create({
@@ -122,7 +108,7 @@ describe('Student Assessments API (e2e)', () => {
               teacherId: teacherUserId,
 
               studentId:
-                `STU-E2E-${Date.now()}`,
+                `STU-E2E-${runId}`,
 
               board: 'CBSE',
               grade: '10',
@@ -155,31 +141,57 @@ describe('Student Assessments API (e2e)', () => {
       studentLoginResponse.body.accessToken;
   });
 
-  afterAll(async () => {
-    // ------------------------------------------------
-    // Clean up only records created by this suite.
-    // ------------------------------------------------
-
-    if (createdAssessmentIds.length > 0) {
-      await prisma.assessment.deleteMany({
-        where: {
-          assessmentId: {
-            in: createdAssessmentIds,
+ afterAll(async () => {
+  try {
+    if (prisma) {
+      if (
+        createdAssessmentIds.length > 0
+      ) {
+        await prisma.studentAnswer.deleteMany({
+          where: {
+            attempt: {
+              assessment: {
+                assessmentId: {
+                  in: createdAssessmentIds,
+                },
+              },
+            },
           },
-        },
-      });
-    }
+        });
 
-    if (studentUserId) {
-      await prisma.user.delete({
-        where: {
-          id: studentUserId,
-        },
-      });
-    }
+        await prisma.assessmentAttempt.deleteMany({
+          where: {
+            assessment: {
+              assessmentId: {
+                in: createdAssessmentIds,
+              },
+            },
+          },
+        });
 
-    await app.close();
-  });
+        await prisma.assessment.deleteMany({
+          where: {
+            assessmentId: {
+              in: createdAssessmentIds,
+            },
+          },
+        });
+      }
+
+      if (studentUserId) {
+        await prisma.user.delete({
+          where: {
+            id: studentUserId,
+          },
+        });
+      }
+    }
+  } finally {
+    if (app) {
+      await app.close();
+    }
+  }
+});
 
   // ==================================================
   // TEST 1

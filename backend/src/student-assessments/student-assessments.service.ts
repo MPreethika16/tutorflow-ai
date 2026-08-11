@@ -87,8 +87,9 @@ export class StudentAssessmentsService {
     // - are published
     // - match student's board
     // - match student's grade
-    // - have already started (or have no startAt)
-    // - have not ended (or have no endAt)
+    // // - have a complete schedule
+// - have already started
+// - have not ended
     //
     // Also load ONLY this student's attempt.
     // ------------------------------------------------
@@ -100,33 +101,15 @@ export class StudentAssessmentsService {
           board: student.board,
           grade: student.grade,
 
-          AND: [
-            {
-              OR: [
-                {
-                  startAt: null,
-                },
-                {
-                  startAt: {
-                    lte: now,
-                  },
-                },
-              ],
+          startAt: {
+              not: null,
+              lte: now,
             },
 
-            {
-              OR: [
-                {
-                  endAt: null,
-                },
-                {
-                  endAt: {
-                    gt: now,
-                  },
-                },
-              ],
+            endAt: {
+              not: null,
+              gt: now,
             },
-          ],
         },
 
         orderBy: {
@@ -643,11 +626,14 @@ export class StudentAssessmentsService {
       // attempt that request A created.
       // ------------------------------------------------
 
-      if (
-        error instanceof
-          Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
+     if (
+  error instanceof
+    Prisma.PrismaClientKnownRequestError &&
+  error.code === 'P2002' &&
+  this.isStudentAssessmentUniqueViolation(
+    error,
+  )
+){
         const concurrentAttempt =
           await this.prisma
             .assessmentAttempt
@@ -671,38 +657,46 @@ export class StudentAssessmentsService {
             });
 
         if (concurrentAttempt) {
-          if (
-            concurrentAttempt.status ===
-            AssessmentAttemptStatus.SUBMITTED
-          ) {
-            throw new ConflictException(
-              'Assessment already attempted',
-            );
-          }
+  if (
+    concurrentAttempt.status ===
+    AssessmentAttemptStatus.SUBMITTED
+  ) {
+    throw new ConflictException(
+      'Assessment already attempted',
+    );
+  }
 
-          return {
-            created: false,
+  if (
+    concurrentAttempt.expiresAt <=
+    new Date()
+  ) {
+    throw new ConflictException(
+      'Assessment attempt has expired',
+    );
+  }
 
-            data: {
-              attempt:
-                concurrentAttempt,
+  return {
+    created: false,
 
-              assessment: {
-                assessmentId:
-                  assessment.assessmentId,
+    data: {
+      attempt: concurrentAttempt,
 
-                title:
-                  assessment.title,
+      assessment: {
+        assessmentId:
+          assessment.assessmentId,
 
-                durationMinutes:
-                  assessment.durationMinutes,
+        title:
+          assessment.title,
 
-                maximumMarks:
-                  assessment.maximumMarks,
-              },
-            },
-          };
-        }
+        durationMinutes:
+          assessment.durationMinutes,
+
+        maximumMarks:
+          assessment.maximumMarks,
+      },
+    },
+  };
+}
       }
 
       throw error;
@@ -723,5 +717,20 @@ export class StudentAssessmentsService {
 
     return `ATT-${suffix}`;
   }
+
+  private isStudentAssessmentUniqueViolation(
+  error: Prisma.PrismaClientKnownRequestError,
+): boolean {
+  const target = error.meta?.target;
+
+  if (!Array.isArray(target)) {
+    return false;
+  }
+
+  return (
+    target.includes('studentUserId') &&
+    target.includes('assessmentId')
+  );
+}
 
 }

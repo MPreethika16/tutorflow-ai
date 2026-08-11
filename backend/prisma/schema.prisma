@@ -161,9 +161,7 @@ model AssessmentAttempt {
   answers StudentAnswer[]
 
   @@unique([studentUserId, assessmentId])
-  @@index([studentUserId])
   @@index([assessmentId])
-  @@index([status])
 }
 
 model StudentAnswer {
@@ -180,6 +178,5 @@ model StudentAnswer {
   question Question          @relation(fields: [questionId], references: [id], onDelete: Restrict)
 
   @@unique([attemptId, questionId])
-  @@index([attemptId])
   @@index([questionId])
 }

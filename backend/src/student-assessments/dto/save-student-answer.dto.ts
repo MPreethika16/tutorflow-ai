@@ -1,9 +1,9 @@
 import { Transform } from 'class-transformer';
 import {
+  IsOptional,
   IsString,
   IsUrl,
   Length,
-  ValidateIf,
 } from 'class-validator';
 
 function trimString({
@@ -17,32 +17,25 @@ function trimString({
 }
 
 export class SaveStudentAnswerDto {
-  @ValidateIf(
-    (_dto, value) =>
-      value !== undefined,
-  )
+  @IsOptional()
   @Transform(trimString)
   @IsString()
   @Length(1, 10)
-  selectedOption?: string;
+  selectedOption?: string | null;
 
-  @ValidateIf(
-    (_dto, value) =>
-      value !== undefined,
-  )
+  @IsOptional()
   @Transform(trimString)
   @IsString()
   @Length(1, 5000)
   textAnswer?: string;
 
-  @ValidateIf(
-    (_dto, value) =>
-      value !== undefined,
-  )
+  @IsOptional()
   @Transform(trimString)
   @IsString()
   @IsUrl({
     require_protocol: true,
+    protocols: ['https'],
+    require_valid_protocol: true,
   })
   @Length(1, 5000)
   voiceUrl?: string;

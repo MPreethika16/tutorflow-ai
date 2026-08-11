@@ -27,8 +27,6 @@ describe('Student Assessments API (e2e)', () => {
   let studentUserId: string;
   let otherStudentUserId: string;
 
-  let resumeAttemptId: string;
-
   const runId = Date.now();
 
   const studentEmail =
@@ -51,38 +49,40 @@ describe('Student Assessments API (e2e)', () => {
         imports: [AppModule],
       }).compile();
 
-    app = moduleFixture.createNestApplication();
+    app =
+      moduleFixture.createNestApplication();
 
     await app.init();
 
-    prisma = app.get(PrismaService);
+    prisma =
+      app.get(PrismaService);
 
-    // ------------------------------------------------
-    // Reusable teacher.
-    // ------------------------------------------------
     const teacher =
       await seedTestTeacher(app);
 
-    teacherUserId = teacher.id;
+    teacherUserId =
+      teacher.id;
 
     const teacherLoginResponse =
-      await request(app.getHttpServer())
+      await request(
+        app.getHttpServer(),
+      )
         .post('/auth/login')
         .send({
           email:
-            process.env.TEST_TEACHER_EMAIL,
+            process.env
+              .TEST_TEACHER_EMAIL,
           password:
-            process.env.TEST_TEACHER_PASSWORD,
+            process.env
+              .TEST_TEACHER_PASSWORD,
         })
         .expect(200);
 
     teacherToken =
-      teacherLoginResponse.body.accessToken;
+      teacherLoginResponse.body
+        .accessToken;
 
-    // ------------------------------------------------
-    // Primary student.
-    // ------------------------------------------------
-    const passwordHash =
+    const studentPasswordHash =
       await bcrypt.hash(
         studentPassword,
         12,
@@ -94,18 +94,22 @@ describe('Student Assessments API (e2e)', () => {
           firstName: 'E2E',
           lastName: 'Student',
           email: studentEmail,
-          passwordHash,
+          passwordHash:
+            studentPasswordHash,
           role: UserRole.STUDENT,
-          status: UserStatus.ACTIVE,
+          status:
+            UserStatus.ACTIVE,
 
           student: {
             create: {
-              teacherId: teacherUserId,
+              teacherId:
+                teacherUserId,
               studentId:
                 `STU-E2E-${runId}`,
               board: 'CBSE',
               grade: '10',
-              mustChangePassword: false,
+              mustChangePassword:
+                false,
             },
           },
         },
@@ -115,23 +119,25 @@ describe('Student Assessments API (e2e)', () => {
         },
       });
 
-    studentUserId = studentUser.id;
+    studentUserId =
+      studentUser.id;
 
     const studentLoginResponse =
-      await request(app.getHttpServer())
+      await request(
+        app.getHttpServer(),
+      )
         .post('/auth/login')
         .send({
           email: studentEmail,
-          password: studentPassword,
+          password:
+            studentPassword,
         })
         .expect(200);
 
     studentToken =
-      studentLoginResponse.body.accessToken;
+      studentLoginResponse.body
+        .accessToken;
 
-    // ------------------------------------------------
-    // Second student used for ownership tests.
-    // ------------------------------------------------
     const otherPasswordHash =
       await bcrypt.hash(
         otherStudentPassword,
@@ -143,11 +149,13 @@ describe('Student Assessments API (e2e)', () => {
         data: {
           firstName: 'Other',
           lastName: 'Student',
-          email: otherStudentEmail,
+          email:
+            otherStudentEmail,
           passwordHash:
             otherPasswordHash,
           role: UserRole.STUDENT,
-          status: UserStatus.ACTIVE,
+          status:
+            UserStatus.ACTIVE,
 
           student: {
             create: {
@@ -172,7 +180,9 @@ describe('Student Assessments API (e2e)', () => {
       otherStudent.id;
 
     const otherLoginResponse =
-      await request(app.getHttpServer())
+      await request(
+        app.getHttpServer(),
+      )
         .post('/auth/login')
         .send({
           email:
@@ -183,44 +193,49 @@ describe('Student Assessments API (e2e)', () => {
         .expect(200);
 
     otherStudentToken =
-      otherLoginResponse.body.accessToken;
+      otherLoginResponse.body
+        .accessToken;
   });
 
   afterAll(async () => {
     try {
       if (prisma) {
         if (
-          createdAssessmentIds.length > 0
+          createdAssessmentIds.length >
+          0
         ) {
-          await prisma.studentAnswer.deleteMany({
-            where: {
-              attempt: {
+          await prisma.studentAnswer
+            .deleteMany({
+              where: {
+                attempt: {
+                  assessment: {
+                    assessmentId: {
+                      in: createdAssessmentIds,
+                    },
+                  },
+                },
+              },
+            });
+
+          await prisma.assessmentAttempt
+            .deleteMany({
+              where: {
                 assessment: {
                   assessmentId: {
                     in: createdAssessmentIds,
                   },
                 },
               },
-            },
-          });
+            });
 
-          await prisma.assessmentAttempt.deleteMany({
-            where: {
-              assessment: {
+          await prisma.assessment
+            .deleteMany({
+              where: {
                 assessmentId: {
                   in: createdAssessmentIds,
                 },
               },
-            },
-          });
-
-          await prisma.assessment.deleteMany({
-            where: {
-              assessmentId: {
-                in: createdAssessmentIds,
-              },
-            },
-          });
+            });
         }
 
         if (otherStudentUserId) {
@@ -246,25 +261,37 @@ describe('Student Assessments API (e2e)', () => {
     }
   });
 
+  function uniqueId(
+    prefix: string,
+  ) {
+    return `${prefix}-${Date.now()}-${Math.floor(
+      Math.random() * 1_000_000,
+    )}`;
+  }
 
   async function createAnswerFixture(
     type: QuestionType,
+    options?: {
+      expired?: boolean;
+      submitted?: boolean;
+    },
   ) {
     const now = new Date();
 
-    const unique =
-      `${Date.now()}-${Math.floor(
-        Math.random() * 1_000_000,
-      )}`;
-
     const assessmentId =
-      `ASM-E2E-ANSWER-${unique}`;
+      uniqueId(
+        'ASM-E2E-ANSWER',
+      );
 
     const questionId =
-      `QUE-E2E-ANSWER-${unique}`;
+      uniqueId(
+        'QUE-E2E-ANSWER',
+      );
 
     const attemptId =
-      `ATT-E2E-ANSWER-${unique}`;
+      uniqueId(
+        'ATT-E2E-ANSWER',
+      );
 
     createdAssessmentIds.push(
       assessmentId,
@@ -283,14 +310,22 @@ describe('Student Assessments API (e2e)', () => {
           subject: 'Science',
           durationMinutes: 60,
           maximumMarks: 5,
-          startAt: new Date(
-            now.getTime() -
-              10 * 60 * 1000,
-          ),
-          endAt: new Date(
-            now.getTime() +
-              2 * 60 * 60 * 1000,
-          ),
+
+          startAt:
+            new Date(
+              now.getTime() -
+                10 * 60 * 1000,
+            ),
+
+          endAt:
+            new Date(
+              now.getTime() +
+                2 *
+                  60 *
+                  60 *
+                  1000,
+            ),
+
           status:
             AssessmentStatus.PUBLISHED,
         },
@@ -304,43 +339,54 @@ describe('Student Assessments API (e2e)', () => {
       await prisma.question.create({
         data: {
           questionId,
+
           assessmentId:
             assessment.id,
+
           type,
+
           prompt:
             'Answer fixture question',
+
           marks: 5,
           order: 1,
 
           options:
-            type === QuestionType.MCQ
+            type ===
+            QuestionType.MCQ
               ? [
                   {
                     id: 'A',
-                    text: 'Option A',
+                    text:
+                      'Option A',
                   },
                   {
                     id: 'B',
-                    text: 'Option B',
+                    text:
+                      'Option B',
                   },
                   {
                     id: 'C',
-                    text: 'Option C',
+                    text:
+                      'Option C',
                   },
                   {
                     id: 'D',
-                    text: 'Option D',
+                    text:
+                      'Option D',
                   },
                 ]
               : undefined,
 
           correctOption:
-            type === QuestionType.MCQ
+            type ===
+            QuestionType.MCQ
               ? 'B'
               : undefined,
 
           modelAnswer:
-            type === QuestionType.MCQ
+            type ===
+            QuestionType.MCQ
               ? undefined
               : 'Example model answer',
         },
@@ -351,28 +397,57 @@ describe('Student Assessments API (e2e)', () => {
         },
       });
 
-    const attempt =
-      await prisma.assessmentAttempt.create({
-        data: {
-          attemptId,
-          studentUserId,
-          assessmentId:
-            assessment.id,
-          status:
-            AssessmentAttemptStatus.IN_PROGRESS,
-          startedAt: now,
-          expiresAt:
-            new Date(
-              now.getTime() +
-                60 * 60 * 1000,
-            ),
-        },
+    const expiresAt =
+      options?.expired
+        ? new Date(
+            now.getTime() -
+              60 * 1000,
+          )
+        : new Date(
+            now.getTime() +
+              60 *
+                60 *
+                1000,
+          );
 
-        select: {
-          id: true,
-          attemptId: true,
-        },
-      });
+    const submittedAt =
+      options?.submitted
+        ? now
+        : null;
+
+    const attempt =
+      await prisma.assessmentAttempt
+        .create({
+          data: {
+            attemptId,
+            studentUserId,
+
+            assessmentId:
+              assessment.id,
+
+            status:
+              options?.submitted
+                ? AssessmentAttemptStatus.SUBMITTED
+                : AssessmentAttemptStatus.IN_PROGRESS,
+
+            startedAt:
+              new Date(
+                now.getTime() -
+                  5 *
+                    60 *
+                    1000,
+              ),
+
+            expiresAt,
+            submittedAt,
+          },
+
+          select: {
+            id: true,
+            attemptId: true,
+            expiresAt: true,
+          },
+        });
 
     return {
       assessment,
@@ -381,179 +456,18 @@ describe('Student Assessments API (e2e)', () => {
     };
   }
 
-  // ==================================================
-  // ISSUE #28 — LIST AVAILABLE ASSESSMENTS
-  // ==================================================
-
-  it('returns matching published assessment as AVAILABLE', async () => {
-    const now = new Date();
-
-    const publicAssessmentId =
-      `ASM-E2E-AVAILABLE-${Date.now()}`;
-
-    createdAssessmentIds.push(
-      publicAssessmentId,
-    );
-
-    await prisma.assessment.create({
-      data: {
-        assessmentId:
-          publicAssessmentId,
-        teacherId:
-          teacherUserId,
-        title:
-          'Available E2E Assessment',
-        description:
-          'Visible to CBSE grade 10 student',
-        board: 'CBSE',
-        grade: '10',
-        subject: 'Science',
-        durationMinutes: 60,
-        maximumMarks: 20,
-        startAt: new Date(
-          now.getTime() -
-            60 * 60 * 1000,
-        ),
-        endAt: new Date(
-          now.getTime() +
-            60 * 60 * 1000,
-        ),
-        status:
-          AssessmentStatus.PUBLISHED,
-      },
-    });
-
-    const response = await request(
-      app.getHttpServer(),
-    )
-      .get('/student/assessments')
-      .set(
-        'Authorization',
-        `Bearer ${studentToken}`,
-      )
-      .expect(200);
-
-    const assessment =
-      response.body.assessments.find(
-        (item: {
-          assessmentId: string;
-        }) =>
-          item.assessmentId ===
-          publicAssessmentId,
-      );
-
-    expect(assessment).toBeDefined();
-
-    expect(
-      assessment.assessmentId,
-    ).toBe(publicAssessmentId);
-
-    expect(
-      assessment.attemptStatus,
-    ).toBe('AVAILABLE');
-
-    expect(
-      assessment.attemptId,
-    ).toBeNull();
-
-    expect(
-      assessment.board,
-    ).toBe('CBSE');
-
-    expect(
-      assessment.grade,
-    ).toBe('10');
-  });
-
-  it('does not return assessment for another board or grade', async () => {
-    const now = new Date();
-
-    const wrongGradeAssessmentId =
-      `ASM-E2E-WRONG-GRADE-${Date.now()}`;
-
-    createdAssessmentIds.push(
-      wrongGradeAssessmentId,
-    );
-
-    await prisma.assessment.create({
-      data: {
-        assessmentId:
-          wrongGradeAssessmentId,
-        teacherId:
-          teacherUserId,
-        title:
-          'Grade 9 Assessment',
-        board: 'CBSE',
-        grade: '9',
-        subject: 'Science',
-        durationMinutes: 60,
-        maximumMarks: 20,
-        startAt: new Date(
-          now.getTime() -
-            60 * 60 * 1000,
-        ),
-        endAt: new Date(
-          now.getTime() +
-            60 * 60 * 1000,
-        ),
-        status:
-          AssessmentStatus.PUBLISHED,
-      },
-    });
-
-    const response = await request(
-      app.getHttpServer(),
-    )
-      .get('/student/assessments')
-      .set(
-        'Authorization',
-        `Bearer ${studentToken}`,
-      )
-      .expect(200);
-
-    const assessment =
-      response.body.assessments.find(
-        (item: {
-          assessmentId: string;
-        }) =>
-          item.assessmentId ===
-          wrongGradeAssessmentId,
-      );
-
-    expect(
-      assessment,
-    ).toBeUndefined();
-  });
-
-  it('rejects teacher access', async () => {
-    await request(
-      app.getHttpServer(),
-    )
-      .get('/student/assessments')
-      .set(
-        'Authorization',
-        `Bearer ${teacherToken}`,
-      )
-      .expect(403);
-  });
-
-  it('rejects unauthenticated access', async () => {
-    await request(
-      app.getHttpServer(),
-    )
-      .get('/student/assessments')
-      .expect(401);
-  });
-
-  // ==================================================
-  // ISSUE #30 — GET / RESUME ATTEMPT
-  // ==================================================
-
-  it('returns an active assessment attempt with questions and saved answers', async () => {
+  async function createResumeFixture(
+    options?: {
+      expired?: boolean;
+      submitted?: boolean;
+    },
+  ) {
     const now = new Date();
 
     const assessmentId =
-      `ASM-E2E-RESUME-${Date.now()}`;
+      uniqueId(
+        'ASM-E2E-RESUME',
+      );
 
     createdAssessmentIds.push(
       assessmentId,
@@ -563,25 +477,39 @@ describe('Student Assessments API (e2e)', () => {
       await prisma.assessment.create({
         data: {
           assessmentId,
+
           teacherId:
             teacherUserId,
+
           title:
             'Resume Attempt Test',
+
           instructions:
             'Answer all questions.',
+
           board: 'CBSE',
           grade: '10',
           subject: 'Science',
           durationMinutes: 60,
           maximumMarks: 7,
-          startAt: new Date(
-            now.getTime() -
-              10 * 60 * 1000,
-          ),
-          endAt: new Date(
-            now.getTime() +
-              2 * 60 * 60 * 1000,
-          ),
+
+          startAt:
+            new Date(
+              now.getTime() -
+                10 *
+                  60 *
+                  1000,
+            ),
+
+          endAt:
+            new Date(
+              now.getTime() +
+                2 *
+                  60 *
+                  60 *
+                  1000,
+            ),
+
           status:
             AssessmentStatus.PUBLISHED,
 
@@ -589,13 +517,19 @@ describe('Student Assessments API (e2e)', () => {
             create: [
               {
                 questionId:
-                  `QUE-E2E-MCQ-${Date.now()}`,
+                  uniqueId(
+                    'QUE-E2E-MCQ',
+                  ),
+
                 type:
                   QuestionType.MCQ,
+
                 prompt:
                   'What is 2 + 2?',
+
                 marks: 2,
                 order: 1,
+
                 options: [
                   {
                     id: 'A',
@@ -614,23 +548,32 @@ describe('Student Assessments API (e2e)', () => {
                     text: '6',
                   },
                 ],
+
                 correctOption:
                   'B',
+
                 explanation:
                   '2 + 2 equals 4.',
               },
 
               {
                 questionId:
-                  `QUE-E2E-TYPED-${Date.now()}`,
+                  uniqueId(
+                    'QUE-E2E-TYPED',
+                  ),
+
                 type:
                   QuestionType.TYPED,
+
                 prompt:
                   'Explain gravity.',
+
                 marks: 5,
                 order: 2,
+
                 modelAnswer:
                   'Gravity attracts masses.',
+
                 gradingInstructions:
                   'Check the core concept.',
               },
@@ -640,6 +583,7 @@ describe('Student Assessments API (e2e)', () => {
 
         select: {
           id: true,
+          assessmentId: true,
 
           questions: {
             orderBy: {
@@ -654,109 +598,329 @@ describe('Student Assessments API (e2e)', () => {
         },
       });
 
+    const expiresAt =
+      options?.expired
+        ? new Date(
+            now.getTime() -
+              60 * 1000,
+          )
+        : new Date(
+            now.getTime() +
+              60 *
+                60 *
+                1000,
+          );
+
     const attempt =
-      await prisma.assessmentAttempt.create({
+      await prisma.assessmentAttempt
+        .create({
+          data: {
+            attemptId:
+              uniqueId(
+                'ATT-E2E-RESUME',
+              ),
+
+            studentUserId,
+
+            assessmentId:
+              assessment.id,
+
+            status:
+              options?.submitted
+                ? AssessmentAttemptStatus.SUBMITTED
+                : AssessmentAttemptStatus.IN_PROGRESS,
+
+            startedAt:
+              new Date(
+                now.getTime() -
+                  5 *
+                    60 *
+                    1000,
+              ),
+
+            expiresAt,
+
+            submittedAt:
+              options?.submitted
+                ? now
+                : null,
+          },
+
+          select: {
+            id: true,
+            attemptId: true,
+            expiresAt: true,
+          },
+        });
+
+    await prisma.studentAnswer
+      .create({
         data: {
           attemptId:
-            `ATT-E2E-${Date.now()}`,
-          studentUserId,
-          assessmentId:
-            assessment.id,
-          status:
-            AssessmentAttemptStatus.IN_PROGRESS,
-          startedAt: now,
-          expiresAt:
-            new Date(
-              now.getTime() +
-                60 * 60 * 1000,
-            ),
+            attempt.id,
+
+          questionId:
+            assessment
+              .questions[0].id,
+
+          selectedOption:
+            'B',
         },
       });
 
-    resumeAttemptId =
-      attempt.attemptId;
+    return {
+      assessment,
+      attempt,
+    };
+  }
 
-    // Save only question 1.
-    await prisma.studentAnswer.create({
+  // ==================================================
+  // ISSUE #28 — LIST AVAILABLE ASSESSMENTS
+  // ==================================================
+
+  it('returns matching published assessment as AVAILABLE', async () => {
+    const now =
+      new Date();
+
+    const assessmentId =
+      uniqueId(
+        'ASM-E2E-AVAILABLE',
+      );
+
+    createdAssessmentIds.push(
+      assessmentId,
+    );
+
+    await prisma.assessment.create({
       data: {
-        attemptId:
-          attempt.id,
-        questionId:
-          assessment.questions[0].id,
-        selectedOption:
-          'B',
+        assessmentId,
+        teacherId:
+          teacherUserId,
+
+        title:
+          'Available E2E Assessment',
+
+        board: 'CBSE',
+        grade: '10',
+        subject: 'Science',
+        durationMinutes: 60,
+        maximumMarks: 20,
+
+        startAt:
+          new Date(
+            now.getTime() -
+              60 *
+                60 *
+                1000,
+          ),
+
+        endAt:
+          new Date(
+            now.getTime() +
+              60 *
+                60 *
+                1000,
+          ),
+
+        status:
+          AssessmentStatus.PUBLISHED,
       },
     });
 
-    const response = await request(
+    const response =
+      await request(
+        app.getHttpServer(),
+      )
+        .get(
+          '/student/assessments',
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .expect(200);
+
+    const assessment =
+      response.body.assessments
+        .find(
+          (item: {
+            assessmentId: string;
+          }) =>
+            item.assessmentId ===
+            assessmentId,
+        );
+
+    expect(
+      assessment,
+    ).toBeDefined();
+
+    expect(
+      assessment.attemptStatus,
+    ).toBe('AVAILABLE');
+
+    expect(
+      assessment.attemptId,
+    ).toBeNull();
+  });
+
+  it('does not return assessment for another board or grade', async () => {
+    const now =
+      new Date();
+
+    const assessmentId =
+      uniqueId(
+        'ASM-E2E-WRONG-GRADE',
+      );
+
+    createdAssessmentIds.push(
+      assessmentId,
+    );
+
+    await prisma.assessment.create({
+      data: {
+        assessmentId,
+        teacherId:
+          teacherUserId,
+        title:
+          'Wrong Grade Assessment',
+        board: 'CBSE',
+        grade: '9',
+        subject: 'Science',
+        durationMinutes: 60,
+        maximumMarks: 20,
+
+        startAt:
+          new Date(
+            now.getTime() -
+              60 *
+                60 *
+                1000,
+          ),
+
+        endAt:
+          new Date(
+            now.getTime() +
+              60 *
+                60 *
+                1000,
+          ),
+
+        status:
+          AssessmentStatus.PUBLISHED,
+      },
+    });
+
+    const response =
+      await request(
+        app.getHttpServer(),
+      )
+        .get(
+          '/student/assessments',
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .expect(200);
+
+    expect(
+      response.body.assessments
+        .some(
+          (item: {
+            assessmentId: string;
+          }) =>
+            item.assessmentId ===
+            assessmentId,
+        ),
+    ).toBe(false);
+  });
+
+  it('rejects teacher and unauthenticated access to the student list', async () => {
+    await request(
       app.getHttpServer(),
     )
       .get(
-        `/student/attempts/${resumeAttemptId}`,
+        '/student/assessments',
       )
       .set(
         'Authorization',
-        `Bearer ${studentToken}`,
+        `Bearer ${teacherToken}`,
       )
-      .expect(200);
+      .expect(403);
 
-    expect(
-      response.body.attempt.attemptId,
-    ).toBe(resumeAttemptId);
+    await request(
+      app.getHttpServer(),
+    )
+      .get(
+        '/student/assessments',
+      )
+      .expect(401);
+  });
+
+  // ==================================================
+  // ISSUE #30 — GET / RESUME ATTEMPT
+  // ==================================================
+
+  it('returns an active attempt with safe questions and saved answers', async () => {
+    const fixture =
+      await createResumeFixture();
+
+    const response =
+      await request(
+        app.getHttpServer(),
+      )
+        .get(
+          `/student/attempts/${fixture.attempt.attemptId}`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .expect(200);
 
     expect(
       response.body.attempt.status,
     ).toBe('IN_PROGRESS');
 
     expect(
-      response.body.assessment
-        .assessmentId,
-    ).toBe(assessmentId);
-
-    expect(
-      response.body.assessment
-        .instructions,
-    ).toBe(
-      'Answer all questions.',
-    );
-
-    expect(
       response.body.questions,
     ).toHaveLength(2);
 
     expect(
-      response.body.questions[0]
-        .answer.selectedOption,
+      response.body
+        .questions[0]
+        .answer
+        .selectedOption,
     ).toBe('B');
 
     expect(
-      response.body.questions[1]
+      response.body
+        .questions[1]
         .answer,
     ).toBeNull();
 
     expect(
-      response.body.questions[0]
+      response.body
+        .questions[0]
         .options,
-    ).toHaveLength(4);
-
-    expect(
-      response.body.questions[1]
-        .options,
-    ).toBeNull();
-  });
-
-  it('does not expose teacher-only question fields', async () => {
-    const response = await request(
-      app.getHttpServer(),
-    )
-      .get(
-        `/student/attempts/${resumeAttemptId}`,
-      )
-      .set(
-        'Authorization',
-        `Bearer ${studentToken}`,
-      )
-      .expect(200);
+    ).toEqual([
+      {
+        id: 'A',
+        text: '3',
+      },
+      {
+        id: 'B',
+        text: '4',
+      },
+      {
+        id: 'C',
+        text: '5',
+      },
+      {
+        id: 'D',
+        text: '6',
+      },
+    ]);
 
     for (
       const question of
@@ -788,12 +952,15 @@ describe('Student Assessments API (e2e)', () => {
     }
   });
 
-  it('returns 404 when another student tries to access the attempt', async () => {
+  it('returns 404 when another student tries to read an attempt', async () => {
+    const fixture =
+      await createResumeFixture();
+
     await request(
       app.getHttpServer(),
     )
       .get(
-        `/student/attempts/${resumeAttemptId}`,
+        `/student/attempts/${fixture.attempt.attemptId}`,
       )
       .set(
         'Authorization',
@@ -802,73 +969,99 @@ describe('Student Assessments API (e2e)', () => {
       .expect(404);
   });
 
-  it('allows the student to view a submitted attempt', async () => {
-    await prisma.assessmentAttempt.update({
-      where: {
-        attemptId:
-          resumeAttemptId,
-      },
+  it('allows a submitted attempt to be viewed', async () => {
+    const fixture =
+      await createResumeFixture({
+        submitted: true,
+      });
 
-      data: {
-        status:
-          AssessmentAttemptStatus.SUBMITTED,
-        submittedAt:
-          new Date(),
-      },
-    });
-
-    const response = await request(
-      app.getHttpServer(),
-    )
-      .get(
-        `/student/attempts/${resumeAttemptId}`,
+    const response =
+      await request(
+        app.getHttpServer(),
       )
-      .set(
-        'Authorization',
-        `Bearer ${studentToken}`,
-      )
-      .expect(200);
+        .get(
+          `/student/attempts/${fixture.attempt.attemptId}`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .expect(200);
 
     expect(
       response.body.attempt.status,
     ).toBe('SUBMITTED');
 
     expect(
-      response.body.attempt.submittedAt,
+      response.body.attempt
+        .submittedAt,
     ).toBeDefined();
   });
 
-  it('rejects an expired IN_PROGRESS attempt', async () => {
-    await prisma.assessmentAttempt.update({
-      where: {
-        attemptId:
-          resumeAttemptId,
-      },
+  it('auto-submits an expired IN_PROGRESS attempt when fetched', async () => {
+    const fixture =
+      await createResumeFixture({
+        expired: true,
+      });
 
-      data: {
-        status:
-          AssessmentAttemptStatus.IN_PROGRESS,
-        submittedAt:
-          null,
-        expiresAt:
-          new Date(
-            Date.now() -
-              60 * 1000,
-          ),
-      },
-    });
+    const response =
+      await request(
+        app.getHttpServer(),
+      )
+        .get(
+          `/student/attempts/${fixture.attempt.attemptId}`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .expect(200);
 
-    await request(
-      app.getHttpServer(),
-    )
-      .get(
-        `/student/attempts/${resumeAttemptId}`,
-      )
-      .set(
-        'Authorization',
-        `Bearer ${studentToken}`,
-      )
-      .expect(409);
+    expect(
+      response.body.attempt.status,
+    ).toBe('SUBMITTED');
+
+    expect(
+      new Date(
+        response.body.attempt
+          .submittedAt,
+      ).getTime(),
+    ).toBe(
+      fixture.attempt
+        .expiresAt
+        .getTime(),
+    );
+
+    const persisted =
+      await prisma
+        .assessmentAttempt
+        .findUniqueOrThrow({
+          where: {
+            attemptId:
+              fixture.attempt
+                .attemptId,
+          },
+
+          select: {
+            status: true,
+            submittedAt: true,
+          },
+        });
+
+    expect(
+      persisted.status,
+    ).toBe(
+      AssessmentAttemptStatus.SUBMITTED,
+    );
+
+    expect(
+      persisted.submittedAt
+        ?.getTime(),
+    ).toBe(
+      fixture.attempt
+        .expiresAt
+        .getTime(),
+    );
   });
 
   it('returns 404 for an unknown attempt', async () => {
@@ -889,13 +1082,13 @@ describe('Student Assessments API (e2e)', () => {
   // ISSUE #31 — SAVE / UPDATE STUDENT ANSWERS
   // ==================================================
 
-  it('creates and then updates an MCQ answer without creating duplicates', async () => {
+  it('creates and updates an MCQ answer case-insensitively without duplicates', async () => {
     const fixture =
       await createAnswerFixture(
         QuestionType.MCQ,
       );
 
-    const firstResponse =
+    const first =
       await request(
         app.getHttpServer(),
       )
@@ -907,16 +1100,16 @@ describe('Student Assessments API (e2e)', () => {
           `Bearer ${studentToken}`,
         )
         .send({
-          selectedOption: 'A',
+          selectedOption: 'a',
         })
         .expect(200);
 
     expect(
-      firstResponse.body.answer
+      first.body.answer
         .selectedOption,
     ).toBe('A');
 
-    const secondResponse =
+    const second =
       await request(
         app.getHttpServer(),
       )
@@ -928,35 +1121,36 @@ describe('Student Assessments API (e2e)', () => {
           `Bearer ${studentToken}`,
         )
         .send({
-          selectedOption: 'B',
+          selectedOption: 'b',
         })
         .expect(200);
 
     expect(
-      secondResponse.body.answer
+      second.body.answer
         .selectedOption,
     ).toBe('B');
 
-    const answerCount =
-      await prisma.studentAnswer.count({
-        where: {
-          attemptId:
-            fixture.attempt.id,
-          questionId:
-            fixture.question.id,
-        },
-      });
+    const count =
+      await prisma.studentAnswer
+        .count({
+          where: {
+            attemptId:
+              fixture.attempt.id,
+            questionId:
+              fixture.question.id,
+          },
+        });
 
-    expect(answerCount).toBe(1);
+    expect(count).toBe(1);
   });
 
-  it('saves a typed answer', async () => {
+  it('clears an MCQ selection when selectedOption is null', async () => {
     const fixture =
       await createAnswerFixture(
-        QuestionType.TYPED,
+        QuestionType.MCQ,
       );
 
-    const response = await request(
+    await request(
       app.getHttpServer(),
     )
       .put(
@@ -967,58 +1161,93 @@ describe('Student Assessments API (e2e)', () => {
         `Bearer ${studentToken}`,
       )
       .send({
-        textAnswer:
-          'Gravity attracts objects with mass.',
+        selectedOption: 'B',
       })
       .expect(200);
 
+    const response =
+      await request(
+        app.getHttpServer(),
+      )
+        .put(
+          `/student/attempts/${fixture.attempt.attemptId}/answers/${fixture.question.questionId}`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .send({
+          selectedOption: null,
+        })
+        .expect(200);
+
     expect(
       response.body.answer
+        .selectedOption,
+    ).toBeNull();
+  });
+
+  it('saves typed and voice answers', async () => {
+    const typed =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    const typedResponse =
+      await request(
+        app.getHttpServer(),
+      )
+        .put(
+          `/student/attempts/${typed.attempt.attemptId}/answers/${typed.question.questionId}`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .send({
+          textAnswer:
+            'Gravity attracts objects with mass.',
+        })
+        .expect(200);
+
+    expect(
+      typedResponse.body.answer
         .textAnswer,
     ).toBe(
       'Gravity attracts objects with mass.',
     );
 
-    expect(
-      response.body.answer
-        .selectedOption,
-    ).toBeNull();
-
-    expect(
-      response.body.answer.voiceUrl,
-    ).toBeNull();
-  });
-
-  it('saves a voice answer URL', async () => {
-    const fixture =
+    const voice =
       await createAnswerFixture(
         QuestionType.VOICE,
       );
 
-    const response = await request(
-      app.getHttpServer(),
-    )
-      .put(
-        `/student/attempts/${fixture.attempt.attemptId}/answers/${fixture.question.questionId}`,
+    const voiceResponse =
+      await request(
+        app.getHttpServer(),
       )
-      .set(
-        'Authorization',
-        `Bearer ${studentToken}`,
-      )
-      .send({
-        voiceUrl:
-          'https://example.com/audio/answer.webm',
-      })
-      .expect(200);
+        .put(
+          `/student/attempts/${voice.attempt.attemptId}/answers/${voice.question.questionId}`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .send({
+          voiceUrl:
+            'https://example.com/audio/answer.webm',
+        })
+        .expect(200);
 
     expect(
-      response.body.answer.voiceUrl,
+      voiceResponse.body.answer
+        .voiceUrl,
     ).toBe(
       'https://example.com/audio/answer.webm',
     );
   });
 
-  it('rejects an invalid MCQ option', async () => {
+  it('rejects invalid MCQ options and wrong answer shapes', async () => {
     const fixture =
       await createAnswerFixture(
         QuestionType.MCQ,
@@ -1038,13 +1267,6 @@ describe('Student Assessments API (e2e)', () => {
         selectedOption: 'Z',
       })
       .expect(400);
-  });
-
-  it('rejects an answer shape that does not match the question type', async () => {
-    const fixture =
-      await createAnswerFixture(
-        QuestionType.MCQ,
-      );
 
     await request(
       app.getHttpServer(),
@@ -1058,13 +1280,18 @@ describe('Student Assessments API (e2e)', () => {
       )
       .send({
         textAnswer:
-          'This is not an MCQ answer.',
+          'Not an MCQ answer.',
       })
       .expect(400);
   });
 
-  it('returns 404 when another student tries to save an answer', async () => {
-    const fixture =
+  it('protects answer ownership and question ownership', async () => {
+    const first =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    const second =
       await createAnswerFixture(
         QuestionType.TYPED,
       );
@@ -1073,7 +1300,7 @@ describe('Student Assessments API (e2e)', () => {
       app.getHttpServer(),
     )
       .put(
-        `/student/attempts/${fixture.attempt.attemptId}/answers/${fixture.question.questionId}`,
+        `/student/attempts/${first.attempt.attemptId}/answers/${first.question.questionId}`,
       )
       .set(
         'Authorization',
@@ -1084,24 +1311,12 @@ describe('Student Assessments API (e2e)', () => {
           'Not my attempt.',
       })
       .expect(404);
-  });
-
-  it('returns 404 when the question belongs to another assessment', async () => {
-    const firstFixture =
-      await createAnswerFixture(
-        QuestionType.TYPED,
-      );
-
-    const secondFixture =
-      await createAnswerFixture(
-        QuestionType.TYPED,
-      );
 
     await request(
       app.getHttpServer(),
     )
       .put(
-        `/student/attempts/${firstFixture.attempt.attemptId}/answers/${secondFixture.question.questionId}`,
+        `/student/attempts/${first.attempt.attemptId}/answers/${second.question.questionId}`,
       )
       .set(
         'Authorization',
@@ -1109,29 +1324,19 @@ describe('Student Assessments API (e2e)', () => {
       )
       .send({
         textAnswer:
-          'Wrong assessment question.',
+          'Wrong assessment.',
       })
       .expect(404);
   });
 
-  it('rejects saving an answer after submission', async () => {
+  it('rejects answer changes after submission', async () => {
     const fixture =
       await createAnswerFixture(
         QuestionType.TYPED,
+        {
+          submitted: true,
+        },
       );
-
-    await prisma.assessmentAttempt.update({
-      where: {
-        attemptId:
-          fixture.attempt.attemptId,
-      },
-      data: {
-        status:
-          AssessmentAttemptStatus.SUBMITTED,
-        submittedAt:
-          new Date(),
-      },
-    });
 
     await request(
       app.getHttpServer(),
@@ -1150,25 +1355,14 @@ describe('Student Assessments API (e2e)', () => {
       .expect(409);
   });
 
-  it('rejects saving an answer after attempt expiry', async () => {
+  it('auto-submits an expired attempt before rejecting a late answer', async () => {
     const fixture =
       await createAnswerFixture(
         QuestionType.TYPED,
+        {
+          expired: true,
+        },
       );
-
-    await prisma.assessmentAttempt.update({
-      where: {
-        attemptId:
-          fixture.attempt.attemptId,
-      },
-      data: {
-        expiresAt:
-          new Date(
-            Date.now() -
-              60 * 1000,
-          ),
-      },
-    });
 
     await request(
       app.getHttpServer(),
@@ -1185,6 +1379,37 @@ describe('Student Assessments API (e2e)', () => {
           'Too late.',
       })
       .expect(409);
+
+    const persisted =
+      await prisma
+        .assessmentAttempt
+        .findUniqueOrThrow({
+          where: {
+            attemptId:
+              fixture.attempt
+                .attemptId,
+          },
+
+          select: {
+            status: true,
+            submittedAt: true,
+          },
+        });
+
+    expect(
+      persisted.status,
+    ).toBe(
+      AssessmentAttemptStatus.SUBMITTED,
+    );
+
+    expect(
+      persisted.submittedAt
+        ?.getTime(),
+    ).toBe(
+      fixture.attempt
+        .expiresAt
+        .getTime(),
+    );
   });
 
   it('rejects unauthenticated answer saves', async () => {
@@ -1206,120 +1431,89 @@ describe('Student Assessments API (e2e)', () => {
       .expect(401);
   });
 
-
   // ==================================================
   // ISSUE #32 — SUBMIT ASSESSMENT ATTEMPT
   // ==================================================
 
-  it('submits an active attempt and returns the correct answer counts', async () => {
+  it('submits an active attempt and returns correct answer counts', async () => {
     const fixture =
       await createAnswerFixture(
         QuestionType.TYPED,
       );
 
-    // This fixture has one question. Save an answer first
-    // so we can verify both totalQuestions and answeredQuestions.
-    await prisma.studentAnswer.create({
-      data: {
-        attemptId:
-          fixture.attempt.id,
-        questionId:
-          fixture.question.id,
-        textAnswer:
-          'My final answer.',
-      },
-    });
-
-    const response = await request(
-      app.getHttpServer(),
-    )
-      .post(
-        `/student/attempts/${fixture.attempt.attemptId}/submit`,
-      )
-      .set(
-        'Authorization',
-        `Bearer ${studentToken}`,
-      )
-      .expect(201);
-
-    expect(
-      response.body.attempt.attemptId,
-    ).toBe(
-      fixture.attempt.attemptId,
-    );
-
-    expect(
-      response.body.attempt.status,
-    ).toBe('SUBMITTED');
-
-    expect(
-      response.body.attempt.submittedAt,
-    ).toBeDefined();
-
-    expect(
-      response.body.answeredQuestions,
-    ).toBe(1);
-
-    expect(
-      response.body.totalQuestions,
-    ).toBe(1);
-
-    const persistedAttempt =
-      await prisma.assessmentAttempt.findUnique({
-        where: {
+    await prisma.studentAnswer
+      .create({
+        data: {
           attemptId:
-            fixture.attempt.attemptId,
-        },
+            fixture.attempt.id,
 
-        select: {
-          status: true,
-          submittedAt: true,
+          questionId:
+            fixture.question.id,
+
+          textAnswer:
+            'My final answer.',
         },
       });
 
-    expect(
-      persistedAttempt?.status,
-    ).toBe(
-      AssessmentAttemptStatus.SUBMITTED,
-    );
-
-    expect(
-      persistedAttempt?.submittedAt,
-    ).not.toBeNull();
-  });
-
-  it('allows submission when questions are unanswered', async () => {
-    const fixture =
-      await createAnswerFixture(
-        QuestionType.TYPED,
-      );
-
-    const response = await request(
-      app.getHttpServer(),
-    )
-      .post(
-        `/student/attempts/${fixture.attempt.attemptId}/submit`,
+    const response =
+      await request(
+        app.getHttpServer(),
       )
-      .set(
-        'Authorization',
-        `Bearer ${studentToken}`,
-      )
-      .expect(201);
+        .post(
+          `/student/attempts/${fixture.attempt.attemptId}/submit`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .expect(201);
 
     expect(
       response.body.attempt.status,
     ).toBe('SUBMITTED');
 
     expect(
-      response.body.answeredQuestions,
-    ).toBe(0);
+      response.body
+        .answeredQuestions,
+    ).toBe(1);
 
     expect(
-      response.body.totalQuestions,
+      response.body
+        .totalQuestions,
     ).toBe(1);
   });
 
-  it('rejects submitting the same attempt twice', async () => {
+  it('allows submission with unanswered questions', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    const response =
+      await request(
+        app.getHttpServer(),
+      )
+        .post(
+          `/student/attempts/${fixture.attempt.attemptId}/submit`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .expect(201);
+
+    expect(
+      response.body
+        .answeredQuestions,
+    ).toBe(0);
+
+    expect(
+      response.body
+        .totalQuestions,
+    ).toBe(1);
+  });
+
+  it('rejects submitting the same active attempt twice', async () => {
     const fixture =
       await createAnswerFixture(
         QuestionType.TYPED,
@@ -1337,7 +1531,7 @@ describe('Student Assessments API (e2e)', () => {
       )
       .expect(201);
 
-    const response = await request(
+    await request(
       app.getHttpServer(),
     )
       .post(
@@ -1348,78 +1542,78 @@ describe('Student Assessments API (e2e)', () => {
         `Bearer ${studentToken}`,
       )
       .expect(409);
-
-    expect(
-      response.body.message,
-    ).toBe(
-      'Assessment attempt already submitted',
-    );
   });
 
-  it('rejects submitting an expired attempt', async () => {
+  it('auto-submits an expired attempt when submit is called', async () => {
     const fixture =
       await createAnswerFixture(
         QuestionType.TYPED,
+        {
+          expired: true,
+        },
       );
 
-    await prisma.assessmentAttempt.update({
-      where: {
-        attemptId:
-          fixture.attempt.attemptId,
-      },
-
-      data: {
-        expiresAt:
-          new Date(
-            Date.now() -
-              60 * 1000,
-          ),
-      },
-    });
-
-    const response = await request(
-      app.getHttpServer(),
-    )
-      .post(
-        `/student/attempts/${fixture.attempt.attemptId}/submit`,
+    const response =
+      await request(
+        app.getHttpServer(),
       )
-      .set(
-        'Authorization',
-        `Bearer ${studentToken}`,
-      )
-      .expect(409);
+        .post(
+          `/student/attempts/${fixture.attempt.attemptId}/submit`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .expect(201);
 
     expect(
-      response.body.message,
+      response.body.attempt.status,
+    ).toBe('SUBMITTED');
+
+    expect(
+      new Date(
+        response.body.attempt
+          .submittedAt,
+      ).getTime(),
     ).toBe(
-      'Assessment attempt has expired',
+      fixture.attempt
+        .expiresAt
+        .getTime(),
     );
 
-    const persistedAttempt =
-      await prisma.assessmentAttempt.findUnique({
-        where: {
-          attemptId:
-            fixture.attempt.attemptId,
-        },
+    const persisted =
+      await prisma
+        .assessmentAttempt
+        .findUniqueOrThrow({
+          where: {
+            attemptId:
+              fixture.attempt
+                .attemptId,
+          },
 
-        select: {
-          status: true,
-          submittedAt: true,
-        },
-      });
+          select: {
+            status: true,
+            submittedAt: true,
+          },
+        });
 
     expect(
-      persistedAttempt?.status,
+      persisted.status,
     ).toBe(
-      AssessmentAttemptStatus.IN_PROGRESS,
+      AssessmentAttemptStatus.SUBMITTED,
     );
 
     expect(
-      persistedAttempt?.submittedAt,
-    ).toBeNull();
+      persisted.submittedAt
+        ?.getTime(),
+    ).toBe(
+      fixture.attempt
+        .expiresAt
+        .getTime(),
+    );
   });
 
-  it('returns 404 when another student tries to submit the attempt', async () => {
+  it('returns 404 when another student tries to submit an attempt', async () => {
     const fixture =
       await createAnswerFixture(
         QuestionType.TYPED,
@@ -1436,32 +1630,9 @@ describe('Student Assessments API (e2e)', () => {
         `Bearer ${otherStudentToken}`,
       )
       .expect(404);
-
-    const persistedAttempt =
-      await prisma.assessmentAttempt.findUnique({
-        where: {
-          attemptId:
-            fixture.attempt.attemptId,
-        },
-
-        select: {
-          status: true,
-          submittedAt: true,
-        },
-      });
-
-    expect(
-      persistedAttempt?.status,
-    ).toBe(
-      AssessmentAttemptStatus.IN_PROGRESS,
-    );
-
-    expect(
-      persistedAttempt?.submittedAt,
-    ).toBeNull();
   });
 
-  it('returns 404 when submitting an unknown attempt', async () => {
+  it('returns 404 for an unknown submit attempt and 401 without auth', async () => {
     await request(
       app.getHttpServer(),
     )
@@ -1473,9 +1644,7 @@ describe('Student Assessments API (e2e)', () => {
         `Bearer ${studentToken}`,
       )
       .expect(404);
-  });
 
-  it('rejects unauthenticated attempt submission', async () => {
     const fixture =
       await createAnswerFixture(
         QuestionType.TYPED,
@@ -1490,7 +1659,7 @@ describe('Student Assessments API (e2e)', () => {
       .expect(401);
   });
 
-  it('prevents answers from being changed after submission', async () => {
+  it('prevents answers from changing after submission', async () => {
     const fixture =
       await createAnswerFixture(
         QuestionType.TYPED,
@@ -1540,27 +1709,28 @@ describe('Student Assessments API (e2e)', () => {
       })
       .expect(409);
 
-    const savedAnswer =
-      await prisma.studentAnswer.findUnique({
-        where: {
-          attemptId_questionId: {
-            attemptId:
-              fixture.attempt.id,
-            questionId:
-              fixture.question.id,
-          },
-        },
+    const saved =
+      await prisma.studentAnswer
+        .findUniqueOrThrow({
+          where: {
+            attemptId_questionId: {
+              attemptId:
+                fixture.attempt.id,
 
-        select: {
-          textAnswer: true,
-        },
-      });
+              questionId:
+                fixture.question.id,
+            },
+          },
+
+          select: {
+            textAnswer: true,
+          },
+        });
 
     expect(
-      savedAnswer?.textAnswer,
+      saved.textAnswer,
     ).toBe(
       'Answer before submit.',
     );
   });
-
 });

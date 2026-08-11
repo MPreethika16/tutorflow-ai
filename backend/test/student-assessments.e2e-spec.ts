@@ -2277,4 +2277,320 @@ describe('Student Assessments API (e2e)', () => {
     );
   });
 
+
+  // ==================================================
+  // ISSUE #34 — PROTECT ATTEMPT OWNERSHIP / ACCESS
+  // ==================================================
+
+  it('does not let another student read a student attempt', async () => {
+    const fixture =
+      await createResumeFixture();
+
+    const beforeAttempt =
+      await prisma.assessmentAttempt
+        .findUniqueOrThrow({
+          where: {
+            attemptId:
+              fixture.attempt
+                .attemptId,
+          },
+
+          select: {
+            status: true,
+            submittedAt: true,
+            updatedAt: true,
+          },
+        });
+
+    await request(
+      app.getHttpServer(),
+    )
+      .get(
+        `/student/attempts/${fixture.attempt.attemptId}`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${otherStudentToken}`,
+      )
+      .expect(404);
+
+    const afterAttempt =
+      await prisma.assessmentAttempt
+        .findUniqueOrThrow({
+          where: {
+            attemptId:
+              fixture.attempt
+                .attemptId,
+          },
+
+          select: {
+            status: true,
+            submittedAt: true,
+            updatedAt: true,
+          },
+        });
+
+    expect(afterAttempt).toEqual(
+      beforeAttempt,
+    );
+  });
+
+  it('does not let another student save an answer into a student attempt', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    const beforeAnswerCount =
+      await prisma.studentAnswer
+        .count({
+          where: {
+            attemptId:
+              fixture.attempt.id,
+          },
+        });
+
+    const beforeAttempt =
+      await prisma.assessmentAttempt
+        .findUniqueOrThrow({
+          where: {
+            attemptId:
+              fixture.attempt
+                .attemptId,
+          },
+
+          select: {
+            status: true,
+            submittedAt: true,
+          },
+        });
+
+    await request(
+      app.getHttpServer(),
+    )
+      .put(
+        `/student/attempts/${fixture.attempt.attemptId}/answers/${fixture.question.questionId}`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${otherStudentToken}`,
+      )
+      .send({
+        textAnswer:
+          'This should never be saved.',
+      })
+      .expect(404);
+
+    const afterAnswerCount =
+      await prisma.studentAnswer
+        .count({
+          where: {
+            attemptId:
+              fixture.attempt.id,
+          },
+        });
+
+    const afterAttempt =
+      await prisma.assessmentAttempt
+        .findUniqueOrThrow({
+          where: {
+            attemptId:
+              fixture.attempt
+                .attemptId,
+          },
+
+          select: {
+            status: true,
+            submittedAt: true,
+          },
+        });
+
+    expect(afterAnswerCount).toBe(
+      beforeAnswerCount,
+    );
+
+    expect(afterAttempt).toEqual(
+      beforeAttempt,
+    );
+  });
+
+  it('does not let another student submit a student attempt', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    const beforeAttempt =
+      await prisma.assessmentAttempt
+        .findUniqueOrThrow({
+          where: {
+            attemptId:
+              fixture.attempt
+                .attemptId,
+          },
+
+          select: {
+            status: true,
+            submittedAt: true,
+          },
+        });
+
+    await request(
+      app.getHttpServer(),
+    )
+      .post(
+        `/student/attempts/${fixture.attempt.attemptId}/submit`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${otherStudentToken}`,
+      )
+      .expect(404);
+
+    const afterAttempt =
+      await prisma.assessmentAttempt
+        .findUniqueOrThrow({
+          where: {
+            attemptId:
+              fixture.attempt
+                .attemptId,
+          },
+
+          select: {
+            status: true,
+            submittedAt: true,
+          },
+        });
+
+    expect(afterAttempt).toEqual(
+      beforeAttempt,
+    );
+  });
+
+  it('does not allow a question from another assessment to be answered through an owned attempt', async () => {
+    const ownedFixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    const otherAssessmentFixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    const beforeOwnedCount =
+      await prisma.studentAnswer
+        .count({
+          where: {
+            attemptId:
+              ownedFixture.attempt
+                .id,
+          },
+        });
+
+    const beforeOtherCount =
+      await prisma.studentAnswer
+        .count({
+          where: {
+            attemptId:
+              otherAssessmentFixture
+                .attempt.id,
+          },
+        });
+
+    await request(
+      app.getHttpServer(),
+    )
+      .put(
+        `/student/attempts/${ownedFixture.attempt.attemptId}/answers/${otherAssessmentFixture.question.questionId}`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${studentToken}`,
+      )
+      .send({
+        textAnswer:
+          'Wrong assessment question.',
+      })
+      .expect(404);
+
+    const afterOwnedCount =
+      await prisma.studentAnswer
+        .count({
+          where: {
+            attemptId:
+              ownedFixture.attempt
+                .id,
+          },
+        });
+
+    const afterOtherCount =
+      await prisma.studentAnswer
+        .count({
+          where: {
+            attemptId:
+              otherAssessmentFixture
+                .attempt.id,
+          },
+        });
+
+    expect(afterOwnedCount).toBe(
+      beforeOwnedCount,
+    );
+
+    expect(afterOtherCount).toBe(
+      beforeOtherCount,
+    );
+  });
+
+  it('does not leak attempt existence across students', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    const readResponse =
+      await request(
+        app.getHttpServer(),
+      )
+        .get(
+          `/student/attempts/${fixture.attempt.attemptId}`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${otherStudentToken}`,
+        );
+
+   const unknownAttemptId =
+  uniqueId(
+    'ATT-UNKNOWN-OWNERSHIP',
+  );
+
+const unknownResponse =
+  await request(
+    app.getHttpServer(),
+  )
+    .get(
+      `/student/attempts/${unknownAttemptId}`,
+    )
+    .set(
+      'Authorization',
+      `Bearer ${otherStudentToken}`,
+    );
+
+    expect(
+      readResponse.status,
+    ).toBe(404);
+
+    expect(
+      unknownResponse.status,
+    ).toBe(404);
+
+    expect(
+      readResponse.body.message,
+    ).toBe(
+      unknownResponse.body.message,
+    );
+  });
+
 });

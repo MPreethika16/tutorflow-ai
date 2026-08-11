@@ -2561,17 +2561,22 @@ describe('Student Assessments API (e2e)', () => {
           `Bearer ${otherStudentToken}`,
         );
 
-    const unknownResponse =
-      await request(
-        app.getHttpServer(),
-      )
-        .get(
-          '/student/attempts/ATT-UNKNOWN-OWNERSHIP-TEST',
-        )
-        .set(
-          'Authorization',
-          `Bearer ${otherStudentToken}`,
-        );
+   const unknownAttemptId =
+  uniqueId(
+    'ATT-UNKNOWN-OWNERSHIP',
+  );
+
+const unknownResponse =
+  await request(
+    app.getHttpServer(),
+  )
+    .get(
+      `/student/attempts/${unknownAttemptId}`,
+    )
+    .set(
+      'Authorization',
+      `Bearer ${otherStudentToken}`,
+    );
 
     expect(
       readResponse.status,

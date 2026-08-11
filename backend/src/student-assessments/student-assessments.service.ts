@@ -956,4 +956,101 @@ export class StudentAssessmentsService {
 
     return `ATT-${suffix}`;
   }
+
+  async submitAttemptForStudent(
+  studentUserId: string,
+  attemptId: string,
+) {
+  return this.prisma.$transaction(
+    async (tx) => {
+      const now = new Date();
+
+      const attempt =
+        await tx.assessmentAttempt.findFirst({
+          where: {
+            attemptId,
+            studentUserId,
+          },
+
+          select: {
+            id: true,
+            attemptId: true,
+            status: true,
+            startedAt: true,
+            expiresAt: true,
+            submittedAt: true,
+            assessmentId: true,
+          },
+        });
+
+      if (!attempt) {
+        throw new NotFoundException(
+          'Assessment attempt not found',
+        );
+      }
+
+      if (
+        attempt.status ===
+        AssessmentAttemptStatus.SUBMITTED
+      ) {
+        throw new ConflictException(
+          'Assessment attempt already submitted',
+        );
+      }
+
+      if (attempt.expiresAt <= now) {
+        throw new ConflictException(
+          'Assessment attempt has expired',
+        );
+      }
+
+      const [
+        totalQuestions,
+        answeredQuestions,
+      ] = await Promise.all([
+        tx.question.count({
+          where: {
+            assessmentId:
+              attempt.assessmentId,
+          },
+        }),
+
+        tx.studentAnswer.count({
+          where: {
+            attemptId:
+              attempt.id,
+          },
+        }),
+      ]);
+
+      const submittedAttempt =
+        await tx.assessmentAttempt.update({
+          where: {
+            id: attempt.id,
+          },
+
+          data: {
+            status:
+              AssessmentAttemptStatus.SUBMITTED,
+            submittedAt: now,
+          },
+
+          select: {
+            attemptId: true,
+            status: true,
+            startedAt: true,
+            expiresAt: true,
+            submittedAt: true,
+          },
+        });
+
+      return {
+        attempt:
+          submittedAttempt,
+        answeredQuestions,
+        totalQuestions,
+      };
+    },
+  );
+}
 }

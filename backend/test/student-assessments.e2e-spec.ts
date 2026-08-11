@@ -1206,4 +1206,361 @@ describe('Student Assessments API (e2e)', () => {
       .expect(401);
   });
 
+
+  // ==================================================
+  // ISSUE #32 — SUBMIT ASSESSMENT ATTEMPT
+  // ==================================================
+
+  it('submits an active attempt and returns the correct answer counts', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    // This fixture has one question. Save an answer first
+    // so we can verify both totalQuestions and answeredQuestions.
+    await prisma.studentAnswer.create({
+      data: {
+        attemptId:
+          fixture.attempt.id,
+        questionId:
+          fixture.question.id,
+        textAnswer:
+          'My final answer.',
+      },
+    });
+
+    const response = await request(
+      app.getHttpServer(),
+    )
+      .post(
+        `/student/attempts/${fixture.attempt.attemptId}/submit`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${studentToken}`,
+      )
+      .expect(201);
+
+    expect(
+      response.body.attempt.attemptId,
+    ).toBe(
+      fixture.attempt.attemptId,
+    );
+
+    expect(
+      response.body.attempt.status,
+    ).toBe('SUBMITTED');
+
+    expect(
+      response.body.attempt.submittedAt,
+    ).toBeDefined();
+
+    expect(
+      response.body.answeredQuestions,
+    ).toBe(1);
+
+    expect(
+      response.body.totalQuestions,
+    ).toBe(1);
+
+    const persistedAttempt =
+      await prisma.assessmentAttempt.findUnique({
+        where: {
+          attemptId:
+            fixture.attempt.attemptId,
+        },
+
+        select: {
+          status: true,
+          submittedAt: true,
+        },
+      });
+
+    expect(
+      persistedAttempt?.status,
+    ).toBe(
+      AssessmentAttemptStatus.SUBMITTED,
+    );
+
+    expect(
+      persistedAttempt?.submittedAt,
+    ).not.toBeNull();
+  });
+
+  it('allows submission when questions are unanswered', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    const response = await request(
+      app.getHttpServer(),
+    )
+      .post(
+        `/student/attempts/${fixture.attempt.attemptId}/submit`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${studentToken}`,
+      )
+      .expect(201);
+
+    expect(
+      response.body.attempt.status,
+    ).toBe('SUBMITTED');
+
+    expect(
+      response.body.answeredQuestions,
+    ).toBe(0);
+
+    expect(
+      response.body.totalQuestions,
+    ).toBe(1);
+  });
+
+  it('rejects submitting the same attempt twice', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    await request(
+      app.getHttpServer(),
+    )
+      .post(
+        `/student/attempts/${fixture.attempt.attemptId}/submit`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${studentToken}`,
+      )
+      .expect(201);
+
+    const response = await request(
+      app.getHttpServer(),
+    )
+      .post(
+        `/student/attempts/${fixture.attempt.attemptId}/submit`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${studentToken}`,
+      )
+      .expect(409);
+
+    expect(
+      response.body.message,
+    ).toBe(
+      'Assessment attempt already submitted',
+    );
+  });
+
+  it('rejects submitting an expired attempt', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    await prisma.assessmentAttempt.update({
+      where: {
+        attemptId:
+          fixture.attempt.attemptId,
+      },
+
+      data: {
+        expiresAt:
+          new Date(
+            Date.now() -
+              60 * 1000,
+          ),
+      },
+    });
+
+    const response = await request(
+      app.getHttpServer(),
+    )
+      .post(
+        `/student/attempts/${fixture.attempt.attemptId}/submit`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${studentToken}`,
+      )
+      .expect(409);
+
+    expect(
+      response.body.message,
+    ).toBe(
+      'Assessment attempt has expired',
+    );
+
+    const persistedAttempt =
+      await prisma.assessmentAttempt.findUnique({
+        where: {
+          attemptId:
+            fixture.attempt.attemptId,
+        },
+
+        select: {
+          status: true,
+          submittedAt: true,
+        },
+      });
+
+    expect(
+      persistedAttempt?.status,
+    ).toBe(
+      AssessmentAttemptStatus.IN_PROGRESS,
+    );
+
+    expect(
+      persistedAttempt?.submittedAt,
+    ).toBeNull();
+  });
+
+  it('returns 404 when another student tries to submit the attempt', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    await request(
+      app.getHttpServer(),
+    )
+      .post(
+        `/student/attempts/${fixture.attempt.attemptId}/submit`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${otherStudentToken}`,
+      )
+      .expect(404);
+
+    const persistedAttempt =
+      await prisma.assessmentAttempt.findUnique({
+        where: {
+          attemptId:
+            fixture.attempt.attemptId,
+        },
+
+        select: {
+          status: true,
+          submittedAt: true,
+        },
+      });
+
+    expect(
+      persistedAttempt?.status,
+    ).toBe(
+      AssessmentAttemptStatus.IN_PROGRESS,
+    );
+
+    expect(
+      persistedAttempt?.submittedAt,
+    ).toBeNull();
+  });
+
+  it('returns 404 when submitting an unknown attempt', async () => {
+    await request(
+      app.getHttpServer(),
+    )
+      .post(
+        '/student/attempts/ATT-DOES-NOT-EXIST/submit',
+      )
+      .set(
+        'Authorization',
+        `Bearer ${studentToken}`,
+      )
+      .expect(404);
+  });
+
+  it('rejects unauthenticated attempt submission', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    await request(
+      app.getHttpServer(),
+    )
+      .post(
+        `/student/attempts/${fixture.attempt.attemptId}/submit`,
+      )
+      .expect(401);
+  });
+
+  it('prevents answers from being changed after submission', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    await request(
+      app.getHttpServer(),
+    )
+      .put(
+        `/student/attempts/${fixture.attempt.attemptId}/answers/${fixture.question.questionId}`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${studentToken}`,
+      )
+      .send({
+        textAnswer:
+          'Answer before submit.',
+      })
+      .expect(200);
+
+    await request(
+      app.getHttpServer(),
+    )
+      .post(
+        `/student/attempts/${fixture.attempt.attemptId}/submit`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${studentToken}`,
+      )
+      .expect(201);
+
+    await request(
+      app.getHttpServer(),
+    )
+      .put(
+        `/student/attempts/${fixture.attempt.attemptId}/answers/${fixture.question.questionId}`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${studentToken}`,
+      )
+      .send({
+        textAnswer:
+          'Changed after submit.',
+      })
+      .expect(409);
+
+    const savedAnswer =
+      await prisma.studentAnswer.findUnique({
+        where: {
+          attemptId_questionId: {
+            attemptId:
+              fixture.attempt.id,
+            questionId:
+              fixture.question.id,
+          },
+        },
+
+        select: {
+          textAnswer: true,
+        },
+      });
+
+    expect(
+      savedAnswer?.textAnswer,
+    ).toBe(
+      'Answer before submit.',
+    );
+  });
+
 });

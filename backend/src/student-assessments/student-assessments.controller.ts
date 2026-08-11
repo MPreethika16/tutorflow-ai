@@ -102,4 +102,17 @@ export class StudentAssessmentsController {
         dto,
       );
   }
+
+  @Post('attempts/:attemptId/submit')
+submitAttempt(
+  @CurrentUser() user: JwtPayload,
+  @Param('attemptId')
+  attemptId: string,
+) {
+  return this.studentAssessmentsService
+    .submitAttemptForStudent(
+      user.sub,
+      attemptId,
+    );
+}
 }

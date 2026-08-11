@@ -76,4 +76,16 @@ export class StudentAssessmentsController {
 
     return result.data;
   }
+
+  @Get('attempts/:attemptId')
+getAttempt(
+  @CurrentUser() user: JwtPayload,
+  @Param('attemptId') attemptId: string,
+) {
+  return this.studentAssessmentsService
+    .getAttemptForStudent(
+      user.sub,
+      attemptId,
+    );
+}
 }

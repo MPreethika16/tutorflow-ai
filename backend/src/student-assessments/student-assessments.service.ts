@@ -10,6 +10,7 @@ import {
   AssessmentAttemptStatus,
   AssessmentStatus,
   Prisma,
+   QuestionType,
 } from '../generated/prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -731,6 +732,191 @@ export class StudentAssessmentsService {
     target.includes('studentUserId') &&
     target.includes('assessmentId')
   );
+}
+
+  async getAttemptForStudent(
+  studentUserId: string,
+  attemptId: string,
+) {
+  const now = new Date();
+
+  const attempt =
+    await this.prisma.assessmentAttempt.findFirst({
+      where: {
+        attemptId,
+        studentUserId,
+      },
+
+      select: {
+        attemptId: true,
+        status: true,
+        startedAt: true,
+        expiresAt: true,
+        submittedAt: true,
+
+        assessment: {
+          select: {
+            assessmentId: true,
+            title: true,
+            subject: true,
+            durationMinutes: true,
+            maximumMarks: true,
+            instructions: true,
+
+            questions: {
+              orderBy: {
+                order: 'asc',
+              },
+
+              select: {
+                id: true,
+                questionId: true,
+                type: true,
+                prompt: true,
+                marks: true,
+                order: true,
+                options: true,
+              },
+            },
+          },
+        },
+
+        answers: {
+          select: {
+            questionId: true,
+            selectedOption: true,
+            textAnswer: true,
+            voiceUrl: true,
+            updatedAt: true,
+          },
+        },
+      },
+    });
+
+  // Either the attempt does not exist
+  // OR it belongs to another student.
+  //
+  // Both intentionally return 404.
+  if (!attempt) {
+    throw new NotFoundException(
+      'Assessment attempt not found',
+    );
+  }
+
+  // For now we do not auto-submit here.
+  // That belongs to the timing issue.
+  if (
+    attempt.status ===
+      AssessmentAttemptStatus.IN_PROGRESS &&
+    attempt.expiresAt <= now
+  ) {
+    throw new ConflictException(
+      'Assessment attempt has expired',
+    );
+  }
+
+  // Create a map:
+  //
+  // question internal UUID -> student's saved answer
+  const answersByQuestionId =
+    new Map(
+      attempt.answers.map((answer) => [
+        answer.questionId,
+        answer,
+      ]),
+    );
+
+  const questions =
+    attempt.assessment.questions.map(
+      (question) => {
+        const savedAnswer =
+          answersByQuestionId.get(
+            question.id,
+          );
+
+        return {
+          questionId:
+            question.questionId,
+
+          type:
+            question.type,
+
+          prompt:
+            question.prompt,
+
+          marks:
+            question.marks,
+
+          order:
+            question.order,
+
+          // Only MCQ should expose options.
+          options:
+            question.type ===
+            QuestionType.MCQ
+              ? question.options
+              : null,
+
+          // No row = unanswered question.
+          answer: savedAnswer
+            ? {
+                selectedOption:
+                  savedAnswer.selectedOption,
+
+                textAnswer:
+                  savedAnswer.textAnswer,
+
+                voiceUrl:
+                  savedAnswer.voiceUrl,
+
+                updatedAt:
+                  savedAnswer.updatedAt,
+              }
+            : null,
+        };
+      },
+    );
+
+  return {
+    attempt: {
+      attemptId:
+        attempt.attemptId,
+
+      status:
+        attempt.status,
+
+      startedAt:
+        attempt.startedAt,
+
+      expiresAt:
+        attempt.expiresAt,
+
+      submittedAt:
+        attempt.submittedAt,
+    },
+
+    assessment: {
+      assessmentId:
+        attempt.assessment.assessmentId,
+
+      title:
+        attempt.assessment.title,
+
+      subject:
+        attempt.assessment.subject,
+
+      durationMinutes:
+        attempt.assessment.durationMinutes,
+
+      maximumMarks:
+        attempt.assessment.maximumMarks,
+
+      instructions:
+        attempt.assessment.instructions,
+    },
+
+    questions,
+  };
 }
 
 }

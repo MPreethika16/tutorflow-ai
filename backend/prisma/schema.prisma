@@ -32,6 +32,11 @@ enum QuestionType {
   VOICE
 }
 
+enum AssessmentAttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+}
+
 model User {
   id           String     @id @default(uuid()) @db.Uuid
   firstName    String     @db.VarChar(100)
@@ -79,6 +84,8 @@ model Student {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   teacher Teacher @relation(fields: [teacherId], references: [userId], onDelete: Restrict)
 
+  attempts AssessmentAttempt[]
+
   @@index([teacherId])
   @@index([teacherId, board, grade])
   @@map("students")
@@ -102,8 +109,10 @@ model Assessment {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
-  teacher   Teacher    @relation(fields: [teacherId], references: [userId], onDelete: Restrict)
+  teacher Teacher @relation(fields: [teacherId], references: [userId], onDelete: Restrict)
+
   questions Question[]
+  attempts  AssessmentAttempt[]
 
   @@index([teacherId])
   @@index([teacherId, status])
@@ -126,9 +135,48 @@ model Question {
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 
-  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  assessment     Assessment      @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  studentAnswers StudentAnswer[]
 
   @@unique([assessmentId, order])
   @@index([assessmentId])
   @@index([assessmentId, type])
+}
+
+model AssessmentAttempt {
+  id            String                  @id @default(uuid()) @db.Uuid
+  attemptId     String                  @unique
+  studentUserId String                  @db.Uuid
+  assessmentId  String                  @db.Uuid
+  status        AssessmentAttemptStatus @default(IN_PROGRESS)
+  startedAt     DateTime
+  expiresAt     DateTime
+  submittedAt   DateTime?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+
+  student    Student    @relation(fields: [studentUserId], references: [userId], onDelete: Restrict)
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+
+  answers StudentAnswer[]
+
+  @@unique([studentUserId, assessmentId])
+  @@index([assessmentId])
+}
+
+model StudentAnswer {
+  id             String   @id @default(uuid()) @db.Uuid
+  attemptId      String   @db.Uuid
+  questionId     String   @db.Uuid
+  selectedOption String?
+  textAnswer     String?
+  voiceUrl       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  attempt  AssessmentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question          @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([attemptId, questionId])
+  @@index([questionId])
 }

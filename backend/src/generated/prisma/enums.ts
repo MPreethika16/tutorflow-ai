@@ -43,3 +43,11 @@ export const QuestionType = {
 } as const
 
 export type QuestionType = (typeof QuestionType)[keyof typeof QuestionType]
+
+
+export const AssessmentAttemptStatus = {
+  IN_PROGRESS: 'IN_PROGRESS',
+  SUBMITTED: 'SUBMITTED'
+} as const
+
+export type AssessmentAttemptStatus = (typeof AssessmentAttemptStatus)[keyof typeof AssessmentAttemptStatus]

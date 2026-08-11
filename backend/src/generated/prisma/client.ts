@@ -64,3 +64,13 @@ export type Assessment = Prisma.AssessmentModel
  * 
  */
 export type Question = Prisma.QuestionModel
+/**
+ * Model AssessmentAttempt
+ * 
+ */
+export type AssessmentAttempt = Prisma.AssessmentAttemptModel
+/**
+ * Model StudentAnswer
+ * 
+ */
+export type StudentAnswer = Prisma.StudentAnswerModel

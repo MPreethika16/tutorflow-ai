@@ -348,6 +348,23 @@ export type JsonNullableWithAggregatesFilterBase<$PrismaModel = never> = {
   _max?: Prisma.NestedJsonNullableFilter<$PrismaModel>
 }
 
+export type EnumAssessmentAttemptStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.AssessmentAttemptStatus | Prisma.EnumAssessmentAttemptStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.AssessmentAttemptStatus[] | Prisma.ListEnumAssessmentAttemptStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AssessmentAttemptStatus[] | Prisma.ListEnumAssessmentAttemptStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAssessmentAttemptStatusFilter<$PrismaModel> | $Enums.AssessmentAttemptStatus
+}
+
+export type EnumAssessmentAttemptStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.AssessmentAttemptStatus | Prisma.EnumAssessmentAttemptStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.AssessmentAttemptStatus[] | Prisma.ListEnumAssessmentAttemptStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AssessmentAttemptStatus[] | Prisma.ListEnumAssessmentAttemptStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAssessmentAttemptStatusWithAggregatesFilter<$PrismaModel> | $Enums.AssessmentAttemptStatus
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumAssessmentAttemptStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumAssessmentAttemptStatusFilter<$PrismaModel>
+}
+
 export type NestedUuidFilter<$PrismaModel = never> = {
   equals?: string | Prisma.StringFieldRefInput<$PrismaModel>
   in?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
@@ -664,6 +681,23 @@ export type NestedJsonNullableFilterBase<$PrismaModel = never> = {
   gt?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel>
   gte?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel>
   not?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel> | Prisma.JsonNullValueFilter
+}
+
+export type NestedEnumAssessmentAttemptStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.AssessmentAttemptStatus | Prisma.EnumAssessmentAttemptStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.AssessmentAttemptStatus[] | Prisma.ListEnumAssessmentAttemptStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AssessmentAttemptStatus[] | Prisma.ListEnumAssessmentAttemptStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAssessmentAttemptStatusFilter<$PrismaModel> | $Enums.AssessmentAttemptStatus
+}
+
+export type NestedEnumAssessmentAttemptStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.AssessmentAttemptStatus | Prisma.EnumAssessmentAttemptStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.AssessmentAttemptStatus[] | Prisma.ListEnumAssessmentAttemptStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AssessmentAttemptStatus[] | Prisma.ListEnumAssessmentAttemptStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAssessmentAttemptStatusWithAggregatesFilter<$PrismaModel> | $Enums.AssessmentAttemptStatus
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumAssessmentAttemptStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumAssessmentAttemptStatusFilter<$PrismaModel>
 }
 
 

@@ -246,6 +246,141 @@ describe('Student Assessments API (e2e)', () => {
     }
   });
 
+
+  async function createAnswerFixture(
+    type: QuestionType,
+  ) {
+    const now = new Date();
+
+    const unique =
+      `${Date.now()}-${Math.floor(
+        Math.random() * 1_000_000,
+      )}`;
+
+    const assessmentId =
+      `ASM-E2E-ANSWER-${unique}`;
+
+    const questionId =
+      `QUE-E2E-ANSWER-${unique}`;
+
+    const attemptId =
+      `ATT-E2E-ANSWER-${unique}`;
+
+    createdAssessmentIds.push(
+      assessmentId,
+    );
+
+    const assessment =
+      await prisma.assessment.create({
+        data: {
+          assessmentId,
+          teacherId:
+            teacherUserId,
+          title:
+            'Student Answer E2E Test',
+          board: 'CBSE',
+          grade: '10',
+          subject: 'Science',
+          durationMinutes: 60,
+          maximumMarks: 5,
+          startAt: new Date(
+            now.getTime() -
+              10 * 60 * 1000,
+          ),
+          endAt: new Date(
+            now.getTime() +
+              2 * 60 * 60 * 1000,
+          ),
+          status:
+            AssessmentStatus.PUBLISHED,
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+    const question =
+      await prisma.question.create({
+        data: {
+          questionId,
+          assessmentId:
+            assessment.id,
+          type,
+          prompt:
+            'Answer fixture question',
+          marks: 5,
+          order: 1,
+
+          options:
+            type === QuestionType.MCQ
+              ? [
+                  {
+                    id: 'A',
+                    text: 'Option A',
+                  },
+                  {
+                    id: 'B',
+                    text: 'Option B',
+                  },
+                  {
+                    id: 'C',
+                    text: 'Option C',
+                  },
+                  {
+                    id: 'D',
+                    text: 'Option D',
+                  },
+                ]
+              : undefined,
+
+          correctOption:
+            type === QuestionType.MCQ
+              ? 'B'
+              : undefined,
+
+          modelAnswer:
+            type === QuestionType.MCQ
+              ? undefined
+              : 'Example model answer',
+        },
+
+        select: {
+          id: true,
+          questionId: true,
+        },
+      });
+
+    const attempt =
+      await prisma.assessmentAttempt.create({
+        data: {
+          attemptId,
+          studentUserId,
+          assessmentId:
+            assessment.id,
+          status:
+            AssessmentAttemptStatus.IN_PROGRESS,
+          startedAt: now,
+          expiresAt:
+            new Date(
+              now.getTime() +
+                60 * 60 * 1000,
+            ),
+        },
+
+        select: {
+          id: true,
+          attemptId: true,
+        },
+      });
+
+    return {
+      assessment,
+      question,
+      attempt,
+    };
+  }
+
   // ==================================================
   // ISSUE #28 — LIST AVAILABLE ASSESSMENTS
   // ==================================================
@@ -749,4 +884,326 @@ describe('Student Assessments API (e2e)', () => {
       )
       .expect(404);
   });
+
+  // ==================================================
+  // ISSUE #31 — SAVE / UPDATE STUDENT ANSWERS
+  // ==================================================
+
+  it('creates and then updates an MCQ answer without creating duplicates', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.MCQ,
+      );
+
+    const firstResponse =
+      await request(
+        app.getHttpServer(),
+      )
+        .put(
+          `/student/attempts/${fixture.attempt.attemptId}/answers/${fixture.question.questionId}`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .send({
+          selectedOption: 'A',
+        })
+        .expect(200);
+
+    expect(
+      firstResponse.body.answer
+        .selectedOption,
+    ).toBe('A');
+
+    const secondResponse =
+      await request(
+        app.getHttpServer(),
+      )
+        .put(
+          `/student/attempts/${fixture.attempt.attemptId}/answers/${fixture.question.questionId}`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .send({
+          selectedOption: 'B',
+        })
+        .expect(200);
+
+    expect(
+      secondResponse.body.answer
+        .selectedOption,
+    ).toBe('B');
+
+    const answerCount =
+      await prisma.studentAnswer.count({
+        where: {
+          attemptId:
+            fixture.attempt.id,
+          questionId:
+            fixture.question.id,
+        },
+      });
+
+    expect(answerCount).toBe(1);
+  });
+
+  it('saves a typed answer', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    const response = await request(
+      app.getHttpServer(),
+    )
+      .put(
+        `/student/attempts/${fixture.attempt.attemptId}/answers/${fixture.question.questionId}`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${studentToken}`,
+      )
+      .send({
+        textAnswer:
+          'Gravity attracts objects with mass.',
+      })
+      .expect(200);
+
+    expect(
+      response.body.answer
+        .textAnswer,
+    ).toBe(
+      'Gravity attracts objects with mass.',
+    );
+
+    expect(
+      response.body.answer
+        .selectedOption,
+    ).toBeNull();
+
+    expect(
+      response.body.answer.voiceUrl,
+    ).toBeNull();
+  });
+
+  it('saves a voice answer URL', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.VOICE,
+      );
+
+    const response = await request(
+      app.getHttpServer(),
+    )
+      .put(
+        `/student/attempts/${fixture.attempt.attemptId}/answers/${fixture.question.questionId}`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${studentToken}`,
+      )
+      .send({
+        voiceUrl:
+          'https://example.com/audio/answer.webm',
+      })
+      .expect(200);
+
+    expect(
+      response.body.answer.voiceUrl,
+    ).toBe(
+      'https://example.com/audio/answer.webm',
+    );
+  });
+
+  it('rejects an invalid MCQ option', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.MCQ,
+      );
+
+    await request(
+      app.getHttpServer(),
+    )
+      .put(
+        `/student/attempts/${fixture.attempt.attemptId}/answers/${fixture.question.questionId}`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${studentToken}`,
+      )
+      .send({
+        selectedOption: 'Z',
+      })
+      .expect(400);
+  });
+
+  it('rejects an answer shape that does not match the question type', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.MCQ,
+      );
+
+    await request(
+      app.getHttpServer(),
+    )
+      .put(
+        `/student/attempts/${fixture.attempt.attemptId}/answers/${fixture.question.questionId}`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${studentToken}`,
+      )
+      .send({
+        textAnswer:
+          'This is not an MCQ answer.',
+      })
+      .expect(400);
+  });
+
+  it('returns 404 when another student tries to save an answer', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    await request(
+      app.getHttpServer(),
+    )
+      .put(
+        `/student/attempts/${fixture.attempt.attemptId}/answers/${fixture.question.questionId}`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${otherStudentToken}`,
+      )
+      .send({
+        textAnswer:
+          'Not my attempt.',
+      })
+      .expect(404);
+  });
+
+  it('returns 404 when the question belongs to another assessment', async () => {
+    const firstFixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    const secondFixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    await request(
+      app.getHttpServer(),
+    )
+      .put(
+        `/student/attempts/${firstFixture.attempt.attemptId}/answers/${secondFixture.question.questionId}`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${studentToken}`,
+      )
+      .send({
+        textAnswer:
+          'Wrong assessment question.',
+      })
+      .expect(404);
+  });
+
+  it('rejects saving an answer after submission', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    await prisma.assessmentAttempt.update({
+      where: {
+        attemptId:
+          fixture.attempt.attemptId,
+      },
+      data: {
+        status:
+          AssessmentAttemptStatus.SUBMITTED,
+        submittedAt:
+          new Date(),
+      },
+    });
+
+    await request(
+      app.getHttpServer(),
+    )
+      .put(
+        `/student/attempts/${fixture.attempt.attemptId}/answers/${fixture.question.questionId}`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${studentToken}`,
+      )
+      .send({
+        textAnswer:
+          'Too late.',
+      })
+      .expect(409);
+  });
+
+  it('rejects saving an answer after attempt expiry', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    await prisma.assessmentAttempt.update({
+      where: {
+        attemptId:
+          fixture.attempt.attemptId,
+      },
+      data: {
+        expiresAt:
+          new Date(
+            Date.now() -
+              60 * 1000,
+          ),
+      },
+    });
+
+    await request(
+      app.getHttpServer(),
+    )
+      .put(
+        `/student/attempts/${fixture.attempt.attemptId}/answers/${fixture.question.questionId}`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${studentToken}`,
+      )
+      .send({
+        textAnswer:
+          'Too late.',
+      })
+      .expect(409);
+  });
+
+  it('rejects unauthenticated answer saves', async () => {
+    const fixture =
+      await createAnswerFixture(
+        QuestionType.TYPED,
+      );
+
+    await request(
+      app.getHttpServer(),
+    )
+      .put(
+        `/student/attempts/${fixture.attempt.attemptId}/answers/${fixture.question.questionId}`,
+      )
+      .send({
+        textAnswer:
+          'No token.',
+      })
+      .expect(401);
+  });
+
 });

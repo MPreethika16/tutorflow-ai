@@ -1,9 +1,11 @@
 import {
+  Body,
   Controller,
   Get,
   HttpStatus,
   Param,
   Post,
+  Put,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -16,10 +18,14 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import type { JwtPayload } from '../auth/types/jwt-payload.type';
 import { UserRole } from '../generated/prisma/client';
 
+import { SaveStudentAnswerDto } from './dto/save-student-answer.dto';
 import { StudentAssessmentsService } from './student-assessments.service';
 
 @Controller('student')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(
+  JwtAuthGuard,
+  RolesGuard,
+)
 @Roles(UserRole.STUDENT)
 export class StudentAssessmentsController {
   constructor(
@@ -27,31 +33,23 @@ export class StudentAssessmentsController {
       StudentAssessmentsService,
   ) {}
 
-  /**
-   * Lists assessments the logged-in student
-   * can currently start or resume.
-   */
   @Get('assessments')
   listAvailableAssessments(
     @CurrentUser() user: JwtPayload,
   ) {
     return this.studentAssessmentsService
-      .findAvailableForStudent(user.sub);
+      .findAvailableForStudent(
+        user.sub,
+      );
   }
 
-  /**
-   * Starts an assessment attempt.
-   *
-   * No body is required.
-   * Student identity comes from JWT.
-   */
-  @Post('assessments/:assessmentId/start')
+  @Post(
+    'assessments/:assessmentId/start',
+  )
   async startAssessment(
     @CurrentUser() user: JwtPayload,
-
     @Param('assessmentId')
     assessmentId: string,
-
     @Res({ passthrough: true })
     response: Response,
   ) {
@@ -62,12 +60,6 @@ export class StudentAssessmentsController {
           assessmentId,
         );
 
-    // New attempt:
-    // 201 Created
-    //
-    // Existing active attempt:
-    // 200 OK because we are returning it
-    // for resume rather than creating another.
     response.status(
       result.created
         ? HttpStatus.CREATED
@@ -78,14 +70,36 @@ export class StudentAssessmentsController {
   }
 
   @Get('attempts/:attemptId')
-getAttempt(
-  @CurrentUser() user: JwtPayload,
-  @Param('attemptId') attemptId: string,
-) {
-  return this.studentAssessmentsService
-    .getAttemptForStudent(
-      user.sub,
-      attemptId,
-    );
-}
+  getAttempt(
+    @CurrentUser() user: JwtPayload,
+    @Param('attemptId')
+    attemptId: string,
+  ) {
+    return this.studentAssessmentsService
+      .getAttemptForStudent(
+        user.sub,
+        attemptId,
+      );
+  }
+
+  @Put(
+    'attempts/:attemptId/answers/:questionId',
+  )
+  saveAnswer(
+    @CurrentUser() user: JwtPayload,
+    @Param('attemptId')
+    attemptId: string,
+    @Param('questionId')
+    questionId: string,
+    @Body()
+    dto: SaveStudentAnswerDto,
+  ) {
+    return this.studentAssessmentsService
+      .saveAnswerForStudent(
+        user.sub,
+        attemptId,
+        questionId,
+        dto,
+      );
+  }
 }

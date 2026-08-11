@@ -147,7 +147,7 @@ export class StudentAssessmentsService {
           return [];
         }
 
-        if (attempt.expiresAt <= now) {
+        if (this.isAttemptExpired(attempt, now)) {
           return [];
         }
 
@@ -269,20 +269,11 @@ export class StudentAssessmentsService {
     });
 
     if (existingAttempt) {
-      if (existingAttempt.status === AssessmentAttemptStatus.SUBMITTED) {
-        throw new ConflictException('Assessment already attempted');
-      }
-
-      if (existingAttempt.expiresAt <= now) {
-        await this.submitExpiredAttempt(this.prisma, existingAttempt, now);
-
-        throw new ConflictException('Assessment already attempted');
-      }
-
-      return {
-        created: false,
-        data: this.buildStartResponse(existingAttempt, assessment),
-      };
+      return this.resolveExistingStartAttempt(
+        existingAttempt,
+        assessment,
+        now,
+      );
     }
 
     const startedAt = now;
@@ -347,24 +338,11 @@ export class StudentAssessmentsService {
           });
 
         if (concurrentAttempt) {
-          if (concurrentAttempt.status === AssessmentAttemptStatus.SUBMITTED) {
-            throw new ConflictException('Assessment already attempted');
-          }
-
-          if (concurrentAttempt.expiresAt <= new Date()) {
-            await this.submitExpiredAttempt(
-              this.prisma,
-              concurrentAttempt,
-              new Date(),
-            );
-
-            throw new ConflictException('Assessment already attempted');
-          }
-
-          return {
-            created: false,
-            data: this.buildStartResponse(concurrentAttempt, assessment),
-          };
+          return this.resolveExistingStartAttempt(
+            concurrentAttempt,
+            assessment,
+            new Date(),
+          );
         }
       }
 
@@ -376,10 +354,10 @@ export class StudentAssessmentsService {
     const now = new Date();
 
     const attempt = await this.prisma.assessmentAttempt.findFirst({
-      where: {
-        attemptId,
+      where: this.ownedAttemptWhere(
         studentUserId,
-      },
+        attemptId,
+      ),
 
       select: {
         id: true,
@@ -438,7 +416,7 @@ export class StudentAssessmentsService {
 
     if (
       attempt.status === AssessmentAttemptStatus.IN_PROGRESS &&
-      attempt.expiresAt <= now
+      this.isAttemptExpired(attempt, now)
     ) {
       await this.submitExpiredAttempt(this.prisma, attempt, now);
 
@@ -519,10 +497,10 @@ export class StudentAssessmentsService {
       const now = new Date();
 
       const attempt = await tx.assessmentAttempt.findFirst({
-        where: {
-          attemptId,
+        where: this.ownedAttemptWhere(
           studentUserId,
-        },
+          attemptId,
+        ),
 
         select: {
           id: true,
@@ -540,7 +518,7 @@ export class StudentAssessmentsService {
         throw new ConflictException('Assessment attempt is not in progress');
       }
 
-      if (attempt.expiresAt <= now) {
+      if (this.isAttemptExpired(attempt, now)) {
         await this.submitExpiredAttempt(tx, attempt, now);
 
         return {
@@ -620,10 +598,10 @@ export class StudentAssessmentsService {
       const now = new Date();
 
       const attempt = await tx.assessmentAttempt.findFirst({
-        where: {
-          attemptId,
+        where: this.ownedAttemptWhere(
           studentUserId,
-        },
+          attemptId,
+        ),
 
         select: {
           id: true,
@@ -660,7 +638,7 @@ export class StudentAssessmentsService {
 
       // If the timer has already expired, make the
       // automatic submission authoritative at expiresAt.
-      if (attempt.expiresAt <= now) {
+      if (this.isAttemptExpired(attempt, now)) {
         await this.submitExpiredAttempt(tx, attempt, now);
 
         const submittedAttempt = await tx.assessmentAttempt.findUniqueOrThrow({
@@ -847,6 +825,64 @@ export class StudentAssessmentsService {
     });
   }
 
+  private ownedAttemptWhere(
+    studentUserId: string,
+    attemptId: string,
+  ) {
+    return {
+      attemptId,
+      studentUserId,
+    };
+  }
+
+  private isAttemptExpired(
+    attempt: {
+      expiresAt: Date;
+    },
+    now: Date,
+  ): boolean {
+    return attempt.expiresAt <= now;
+  }
+
+  private async resolveExistingStartAttempt(
+    attempt: {
+      id: string;
+      attemptId: string;
+      status: AssessmentAttemptStatus;
+      startedAt: Date;
+      expiresAt: Date;
+    },
+    assessment: {
+      assessmentId: string;
+      title: string;
+      durationMinutes: number | null;
+      maximumMarks: number;
+    },
+    now: Date,
+  ) {
+    if (attempt.status === AssessmentAttemptStatus.SUBMITTED) {
+      throw new ConflictException('Assessment already attempted');
+    }
+
+    if (this.isAttemptExpired(attempt, now)) {
+      await this.submitExpiredAttempt(
+        this.prisma,
+        attempt,
+        now,
+      );
+
+      throw new ConflictException('Assessment already attempted');
+    }
+
+    return {
+      created: false,
+      data: this.buildStartResponse(
+        attempt,
+        assessment,
+      ),
+    };
+  }
+
   private async submitExpiredAttempt(
     db: AttemptDb,
     attempt: {
@@ -858,7 +894,7 @@ export class StudentAssessmentsService {
   ): Promise<boolean> {
     if (
       attempt.status !== AssessmentAttemptStatus.IN_PROGRESS ||
-      attempt.expiresAt > now
+      !this.isAttemptExpired(attempt, now)
     ) {
       return false;
     }

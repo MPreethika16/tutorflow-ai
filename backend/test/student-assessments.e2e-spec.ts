@@ -43,6 +43,8 @@ describe('Student Assessments API (e2e)', () => {
 
   const createdAssessmentIds: string[] = [];
 
+
+
   beforeAll(async () => {
     const moduleFixture: TestingModule =
       await Test.createTestingModule({
@@ -2561,22 +2563,17 @@ describe('Student Assessments API (e2e)', () => {
           `Bearer ${otherStudentToken}`,
         );
 
-   const unknownAttemptId =
-  uniqueId(
-    'ATT-UNKNOWN-OWNERSHIP',
-  );
-
-const unknownResponse =
-  await request(
-    app.getHttpServer(),
-  )
-    .get(
-      `/student/attempts/${unknownAttemptId}`,
-    )
-    .set(
-      'Authorization',
-      `Bearer ${otherStudentToken}`,
-    );
+    const unknownResponse =
+      await request(
+        app.getHttpServer(),
+      )
+        .get(
+          '/student/attempts/ATT-UNKNOWN-OWNERSHIP-TEST',
+        )
+        .set(
+          'Authorization',
+          `Bearer ${otherStudentToken}`,
+        );
 
     expect(
       readResponse.status,
@@ -2593,4 +2590,323 @@ const unknownResponse =
     );
   });
 
+
+  // ==================================================
+  // ISSUE #35 — HIDE TEACHER-ONLY QUESTION DATA
+  // ==================================================
+
+  it('never exposes teacher-only fields for MCQ, TYPED, or VOICE questions', async () => {
+    const now =
+      new Date();
+
+    const assessmentId =
+      uniqueId(
+        'ASM-E2E-SAFE-QUESTIONS',
+      );
+
+    createdAssessmentIds.push(
+      assessmentId,
+    );
+
+    const assessment =
+      await prisma.assessment.create({
+        data: {
+          assessmentId,
+
+          teacherId:
+            teacherUserId,
+
+          title:
+            'Student Safe Question Payload',
+
+          board: 'CBSE',
+          grade: '10',
+          subject: 'Science',
+
+          durationMinutes: 60,
+          maximumMarks: 9,
+
+          startAt:
+            new Date(
+              now.getTime() -
+                10 * 60 * 1000,
+            ),
+
+          endAt:
+            new Date(
+              now.getTime() +
+                2 * 60 * 60 * 1000,
+            ),
+
+          status:
+            AssessmentStatus.PUBLISHED,
+
+          questions: {
+            create: [
+              {
+                questionId:
+                  uniqueId(
+                    'QUE-E2E-SAFE-MCQ',
+                  ),
+
+                type:
+                  QuestionType.MCQ,
+
+                prompt:
+                  'Choose the correct option.',
+
+                marks: 2,
+                order: 1,
+
+                options: [
+                  {
+                    id: 'A',
+                    text: 'Alpha',
+                  },
+                  {
+                    id: 'B',
+                    text: 'Beta',
+                  },
+                  {
+                    id: 'C',
+                    text: 'Gamma',
+                  },
+                  {
+                    id: 'D',
+                    text: 'Delta',
+                  },
+                ],
+
+                correctOption:
+                  'B',
+
+                explanation:
+                  'Beta is correct.',
+              },
+
+              {
+                questionId:
+                  uniqueId(
+                    'QUE-E2E-SAFE-TYPED',
+                  ),
+
+                type:
+                  QuestionType.TYPED,
+
+                prompt:
+                  'Explain gravity.',
+
+                marks: 4,
+                order: 2,
+
+                modelAnswer:
+                  'Gravity attracts objects with mass.',
+
+                gradingInstructions:
+                  'Check for the core concept.',
+              },
+
+              {
+                questionId:
+                  uniqueId(
+                    'QUE-E2E-SAFE-VOICE',
+                  ),
+
+                type:
+                  QuestionType.VOICE,
+
+                prompt:
+                  'Explain photosynthesis aloud.',
+
+                marks: 3,
+                order: 3,
+
+                modelAnswer:
+                  'Plants convert light energy into chemical energy.',
+
+                gradingInstructions:
+                  'Check clarity and scientific accuracy.',
+              },
+            ],
+          },
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+    const attempt =
+      await prisma.assessmentAttempt
+        .create({
+          data: {
+            attemptId:
+              uniqueId(
+                'ATT-E2E-SAFE',
+              ),
+
+            studentUserId,
+
+            assessmentId:
+              assessment.id,
+
+            status:
+              AssessmentAttemptStatus.IN_PROGRESS,
+
+            startedAt:
+              now,
+
+            expiresAt:
+              new Date(
+                now.getTime() +
+                  60 * 60 * 1000,
+              ),
+          },
+
+          select: {
+            attemptId: true,
+          },
+        });
+
+    const response =
+      await request(
+        app.getHttpServer(),
+      )
+        .get(
+          `/student/attempts/${attempt.attemptId}`,
+        )
+        .set(
+          'Authorization',
+          `Bearer ${studentToken}`,
+        )
+        .expect(200);
+
+    expect(
+      response.body.questions,
+    ).toHaveLength(3);
+
+    const mcq =
+      response.body.questions.find(
+        (question: {
+          type: string;
+        }) =>
+          question.type ===
+          'MCQ',
+      );
+
+    const typed =
+      response.body.questions.find(
+        (question: {
+          type: string;
+        }) =>
+          question.type ===
+          'TYPED',
+      );
+
+    const voice =
+      response.body.questions.find(
+        (question: {
+          type: string;
+        }) =>
+          question.type ===
+          'VOICE',
+      );
+
+    expect(mcq).toBeDefined();
+    expect(typed).toBeDefined();
+    expect(voice).toBeDefined();
+
+    expect(
+      mcq.options,
+    ).toEqual([
+      {
+        id: 'A',
+        text: 'Alpha',
+      },
+      {
+        id: 'B',
+        text: 'Beta',
+      },
+      {
+        id: 'C',
+        text: 'Gamma',
+      },
+      {
+        id: 'D',
+        text: 'Delta',
+      },
+    ]);
+
+    expect(
+      typed.options,
+    ).toBeNull();
+
+    expect(
+      voice.options,
+    ).toBeNull();
+
+    for (
+      const question of
+      response.body.questions
+    ) {
+      expect(
+        question,
+      ).not.toHaveProperty(
+        'correctOption',
+      );
+
+      expect(
+        question,
+      ).not.toHaveProperty(
+        'modelAnswer',
+      );
+
+      expect(
+        question,
+      ).not.toHaveProperty(
+        'explanation',
+      );
+
+      expect(
+        question,
+      ).not.toHaveProperty(
+        'gradingInstructions',
+      );
+    }
+
+    const serializedResponse =
+      JSON.stringify(
+        response.body,
+      );
+
+    expect(
+      serializedResponse,
+    ).not.toContain(
+      'Beta is correct.',
+    );
+
+    expect(
+      serializedResponse,
+    ).not.toContain(
+      'Gravity attracts objects with mass.',
+    );
+
+    expect(
+      serializedResponse,
+    ).not.toContain(
+      'Plants convert light energy into chemical energy.',
+    );
+
+    expect(
+      serializedResponse,
+    ).not.toContain(
+      'Check for the core concept.',
+    );
+
+    expect(
+      serializedResponse,
+    ).not.toContain(
+      'Check clarity and scientific accuracy.',
+    );
+  });
 });

@@ -3,7 +3,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 
-import {
+import type {
   AiGenerateTextRequest,
   AiGenerateTextResponse,
   AiProvider,
@@ -46,26 +46,47 @@ export class OpenRouterProvider
       );
     }
 
-    const response = await fetch(
-      `${baseUrl}/chat/completions`,
-      {
-        method: 'POST',
+    const body: Record<string, unknown> = {
+      model,
+      messages: request.messages,
+    };
 
-        headers: {
-          Authorization:
-            `Bearer ${apiKey}`,
-
-          'Content-Type':
-            'application/json',
+    if (request.structuredOutput) {
+      body.response_format = {
+        type: 'json_schema',
+        json_schema: {
+          name:
+            request.structuredOutput.name,
+          strict: true,
+          schema:
+            request.structuredOutput.schema,
         },
+      };
+    }
 
-        body: JSON.stringify({
-          model,
-          messages:
-            request.messages,
-        }),
-      },
-    );
+    let response: Response;
+
+    try {
+      response = await fetch(
+        `${baseUrl}/chat/completions`,
+        {
+          method: 'POST',
+
+          headers: {
+            Authorization:
+              `Bearer ${apiKey}`,
+            'Content-Type':
+              'application/json',
+          },
+
+          body: JSON.stringify(body),
+        },
+      );
+    } catch {
+      throw new InternalServerErrorException(
+        'AI provider request failed',
+      );
+    }
 
     if (!response.ok) {
       throw new InternalServerErrorException(
@@ -73,8 +94,16 @@ export class OpenRouterProvider
       );
     }
 
-    const data =
-      (await response.json()) as OpenRouterResponse;
+    let data: OpenRouterResponse;
+
+    try {
+      data =
+        (await response.json()) as OpenRouterResponse;
+    } catch {
+      throw new InternalServerErrorException(
+        'AI provider returned an invalid response',
+      );
+    }
 
     const content =
       data.choices?.[0]
@@ -82,7 +111,7 @@ export class OpenRouterProvider
 
     if (
       typeof content !== 'string' ||
-      content.length === 0
+      content.trim().length === 0
     ) {
       throw new InternalServerErrorException(
         'AI provider returned an invalid response',

@@ -1,4 +1,12 @@
-import { Inject, Injectable } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
+import {
+  toJSONSchema,
+  type ZodType,
+} from 'zod';
 
 import type {
   AiGenerateTextRequest,
@@ -6,6 +14,10 @@ import type {
   AiProvider,
 } from './providers/ai-provider.interface';
 import { AI_PROVIDER } from './providers/ai-provider.token';
+import {
+  aiTopicAnalysisSchema,
+  type AiTopicAnalysis,
+} from './schemas/ai-topic-analysis.schema';
 
 @Injectable()
 export class AiService {
@@ -17,23 +29,58 @@ export class AiService {
   generateText(
     request: AiGenerateTextRequest,
   ): Promise<AiGenerateTextResponse> {
-    return this.provider.generateText(request);
+    return this.provider.generateText(
+      request,
+    );
   }
 
-  testConnection() {
-    return this.generateText({
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are a concise AI assistant.',
+  async generateStructured<T>(
+    request: AiGenerateTextRequest,
+    schema: ZodType<T>,
+    schemaName: string,
+  ): Promise<T> {
+    const jsonSchema =
+      toJSONSchema(schema);
+
+    const response =
+      await this.provider.generateText({
+        ...request,
+
+        structuredOutput: {
+          name: schemaName,
+
+          schema:
+            jsonSchema as Record<
+              string,
+              unknown
+            >,
         },
-        {
-          role: 'user',
-          content:
-            'Reply with exactly: TutorFlow AI connected',
-        },
-      ],
-    });
+      });
+
+    let parsed: unknown;
+
+    try {
+      parsed =
+        JSON.parse(response.content);
+    } catch {
+      throw new InternalServerErrorException(
+        'AI provider returned invalid JSON',
+      );
+    }
+
+    const result =
+      schema.safeParse(parsed);
+
+    if (!result.success) {
+      throw new InternalServerErrorException(
+        'AI provider returned invalid structured output',
+      );
+    }
+
+    return result.data;
   }
+
+  // Temporary integration test method.
+  // Remove this after #40 validation is complete.
+ 
 }

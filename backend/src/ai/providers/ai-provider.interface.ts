@@ -3,8 +3,14 @@ export interface AiMessage {
   content: string;
 }
 
+export interface AiStructuredOutput {
+  name: string;
+  schema: Record<string, unknown>;
+}
+
 export interface AiGenerateTextRequest {
   messages: AiMessage[];
+  structuredOutput?: AiStructuredOutput;
 }
 
 export interface AiGenerateTextResponse {

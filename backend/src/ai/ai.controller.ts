@@ -8,5 +8,5 @@ export class AiController {
     private readonly aiService: AiService,
   ) {}
 
-  
+
 }

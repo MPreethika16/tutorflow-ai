@@ -37,6 +37,16 @@ enum AssessmentAttemptStatus {
   SUBMITTED
 }
 
+enum AssessmentKind {
+  PRACTICE
+  TEST
+}
+
+enum ContentSource {
+  MANUAL
+  AI_GENERATED
+}
+
 model User {
   id           String     @id @default(uuid()) @db.Uuid
   firstName    String     @db.VarChar(100)
@@ -100,6 +110,8 @@ model Assessment {
   board           String
   grade           String
   subject         String
+  kind            AssessmentKind   @default(PRACTICE)
+  source          ContentSource    @default(MANUAL)
   durationMinutes Int?
   instructions    String?
   maximumMarks    Int              @default(0)
@@ -108,8 +120,7 @@ model Assessment {
   status          AssessmentStatus @default(DRAFT)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-
-  teacher Teacher @relation(fields: [teacherId], references: [userId], onDelete: Restrict)
+  teacher         Teacher          @relation(fields: [teacherId], references: [userId], onDelete: Restrict)
 
   questions Question[]
   attempts  AssessmentAttempt[]

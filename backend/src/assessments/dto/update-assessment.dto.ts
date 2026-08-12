@@ -5,7 +5,12 @@ import {
   IsString,
   Length,
   Min,
+  IsEnum,
 } from 'class-validator';
+
+import {
+  AssessmentKind,
+} from '../../generated/prisma/client';
 
 export class UpdateAssessmentDto {
   @IsOptional()
@@ -33,6 +38,9 @@ export class UpdateAssessmentDto {
   @Length(2, 100)
   subject?: string;
 
+    @IsOptional()
+    @IsEnum(AssessmentKind)
+    kind?: AssessmentKind;
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -50,4 +58,6 @@ export class UpdateAssessmentDto {
   @IsOptional()
   @IsDateString()
   endAt?: string;
+
+
 }

@@ -1031,6 +1031,8 @@ export const AssessmentScalarFieldEnum = {
   board: 'board',
   grade: 'grade',
   subject: 'subject',
+  kind: 'kind',
+  source: 'source',
   durationMinutes: 'durationMinutes',
   instructions: 'instructions',
   maximumMarks: 'maximumMarks',
@@ -1201,6 +1203,34 @@ export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaM
  * Reference to a field of type 'Boolean'
  */
 export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
+    
+
+
+/**
+ * Reference to a field of type 'AssessmentKind'
+ */
+export type EnumAssessmentKindFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AssessmentKind'>
+    
+
+
+/**
+ * Reference to a field of type 'AssessmentKind[]'
+ */
+export type ListEnumAssessmentKindFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AssessmentKind[]'>
+    
+
+
+/**
+ * Reference to a field of type 'ContentSource'
+ */
+export type EnumContentSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ContentSource'>
+    
+
+
+/**
+ * Reference to a field of type 'ContentSource[]'
+ */
+export type ListEnumContentSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ContentSource[]'>
     
 
 

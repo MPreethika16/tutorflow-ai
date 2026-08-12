@@ -860,4 +860,86 @@ describe('Student Assessments API (e2e)', () => {
       expiresAt.getTime(),
     ).toBe(endAt.getTime());
   });
+
+  it('creates manual assessments as PRACTICE by default', async () => {
+  const response = await request(app.getHttpServer())
+    .post('/assessments')
+    .set('Authorization', `Bearer ${teacherToken}`)
+    .send({
+      title: 'Algebra Practice',
+      board: 'CBSE',
+      grade: '10',
+      subject: 'Mathematics',
+    })
+    .expect(201);
+
+  expect(response.body.kind).toBe('PRACTICE');
+  expect(response.body.source).toBe('MANUAL');
+});
+
+it('creates a TEST when kind is provided', async () => {
+  const response = await request(app.getHttpServer())
+    .post('/assessments')
+    .set('Authorization', `Bearer ${teacherToken}`)
+    .send({
+      title: 'Algebra Test',
+      board: 'CBSE',
+      grade: '10',
+      subject: 'Mathematics',
+      kind: 'TEST',
+    })
+    .expect(201);
+
+  expect(response.body.kind).toBe('TEST');
+  expect(response.body.source).toBe('MANUAL');
+});
+
+it('allows changing kind while assessment is DRAFT', async () => {
+  const createResponse = await request(
+    app.getHttpServer(),
+  )
+    .post('/assessments')
+    .set(
+      'Authorization',
+      `Bearer ${teacherToken}`,
+    )
+    .send({
+      title: 'Algebra Revision',
+      board: 'CBSE',
+      grade: '10',
+      subject: 'Mathematics',
+      kind: 'PRACTICE',
+    })
+    .expect(201);
+
+  expect(createResponse.body.kind).toBe(
+    'PRACTICE',
+  );
+
+  const assessmentId =
+    createResponse.body.assessmentId;
+
+  const updateResponse = await request(
+    app.getHttpServer(),
+  )
+    .patch(
+      `/assessments/${assessmentId}`,
+    )
+    .set(
+      'Authorization',
+      `Bearer ${teacherToken}`,
+    )
+    .send({
+      kind: 'TEST',
+    })
+    .expect(200);
+
+  expect(updateResponse.body.kind).toBe(
+    'TEST',
+  );
+
+  expect(updateResponse.body.source).toBe(
+    'MANUAL',
+  );
+});
 });

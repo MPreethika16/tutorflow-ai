@@ -127,6 +127,8 @@ export const AssessmentScalarFieldEnum = {
   board: 'board',
   grade: 'grade',
   subject: 'subject',
+  kind: 'kind',
+  source: 'source',
   durationMinutes: 'durationMinutes',
   instructions: 'instructions',
   maximumMarks: 'maximumMarks',

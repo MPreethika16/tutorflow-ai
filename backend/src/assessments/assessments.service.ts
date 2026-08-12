@@ -6,7 +6,9 @@ import {
 } from '@nestjs/common';
 
 import {
+  AssessmentKind,
   AssessmentStatus,
+  ContentSource,
   Prisma,
 } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -104,32 +106,42 @@ export class AssessmentsService {
     const assessmentId = generateAssessmentId();
 return this.prisma.assessment.create({
   data: {
-    assessmentId,
-    teacherId: teacherUserId,
+  assessmentId,
+  teacherId: teacherUserId,
 
-    title: dto.title.trim(),
-    description:
-      dto.description === undefined
-        ? null
-        : dto.description.trim(),
+  title: dto.title.trim(),
+  description:
+    dto.description === undefined
+      ? null
+      : dto.description.trim(),
 
-    board: dto.board.trim(),
-    grade: dto.grade.trim(),
-    subject: dto.subject.trim(),
+  board: dto.board.trim(),
+  grade: dto.grade.trim(),
+  subject: dto.subject.trim(),
 
-    durationMinutes: dto.durationMinutes ?? null,
+  kind:
+    dto.kind ??
+    AssessmentKind.PRACTICE,
 
-    instructions:
-      dto.instructions === undefined
-        ? null
-        : dto.instructions.trim(),
+  source:
+    ContentSource.MANUAL,
 
-    startAt: startAt ?? null,
-    endAt: endAt ?? null,
+  durationMinutes:
+    dto.durationMinutes ?? null,
 
-    status: AssessmentStatus.DRAFT,
-    maximumMarks: 0,
-  },
+  instructions:
+    dto.instructions === undefined
+      ? null
+      : dto.instructions.trim(),
+
+  startAt: startAt ?? null,
+  endAt: endAt ?? null,
+
+  status:
+    AssessmentStatus.DRAFT,
+
+  maximumMarks: 0,
+},
   select: {
     id: true,
     assessmentId: true,
@@ -138,6 +150,8 @@ return this.prisma.assessment.create({
     board: true,
     grade: true,
     subject: true,
+    kind: true,
+source: true,
     durationMinutes: true,
     instructions: true,
     maximumMarks: true,
@@ -173,6 +187,8 @@ return this.prisma.assessment.create({
       board: true,
       grade: true,
       subject: true,
+      kind: true,
+source: true,
       durationMinutes: true,
       instructions: true,
       maximumMarks: true,
@@ -294,6 +310,8 @@ return this.prisma.assessment.create({
           board: true,
           grade: true,
           subject: true,
+          kind: true,
+source: true,
           durationMinutes: true,
           maximumMarks: true,
           startAt: true,
@@ -432,6 +450,8 @@ return this.prisma.assessment.create({
         dto.subject === undefined
           ? undefined
           : dto.subject.trim(),
+      
+      kind: dto.kind,
 
       durationMinutes: dto.durationMinutes,
 
@@ -450,6 +470,8 @@ return this.prisma.assessment.create({
       board: true,
       grade: true,
       subject: true,
+      kind: true,
+      source: true,
       durationMinutes: true,
       instructions: true,
       maximumMarks: true,
@@ -584,6 +606,8 @@ async publishForTeacher(
       board: true,
       grade: true,
       subject: true,
+      kind: true,
+      source: true,
       durationMinutes: true,
       instructions: true,
       maximumMarks: true,
@@ -651,6 +675,8 @@ async publishForTeacher(
       board: true,
       grade: true,
       subject: true,
+      kind: true,
+source: true,
       durationMinutes: true,
       instructions: true,
       maximumMarks: true,
@@ -727,6 +753,8 @@ async archiveForTeacher(
       board: true,
       grade: true,
       subject: true,
+      kind: true,
+source: true,
       durationMinutes: true,
       instructions: true,
       maximumMarks: true,

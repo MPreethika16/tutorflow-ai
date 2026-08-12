@@ -51,3 +51,19 @@ export const AssessmentAttemptStatus = {
 } as const
 
 export type AssessmentAttemptStatus = (typeof AssessmentAttemptStatus)[keyof typeof AssessmentAttemptStatus]
+
+
+export const AssessmentKind = {
+  PRACTICE: 'PRACTICE',
+  TEST: 'TEST'
+} as const
+
+export type AssessmentKind = (typeof AssessmentKind)[keyof typeof AssessmentKind]
+
+
+export const ContentSource = {
+  MANUAL: 'MANUAL',
+  AI_GENERATED: 'AI_GENERATED'
+} as const
+
+export type ContentSource = (typeof ContentSource)[keyof typeof ContentSource]

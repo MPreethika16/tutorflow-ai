@@ -45,6 +45,8 @@ export type AssessmentMinAggregateOutputType = {
   board: string | null
   grade: string | null
   subject: string | null
+  kind: $Enums.AssessmentKind | null
+  source: $Enums.ContentSource | null
   durationMinutes: number | null
   instructions: string | null
   maximumMarks: number | null
@@ -64,6 +66,8 @@ export type AssessmentMaxAggregateOutputType = {
   board: string | null
   grade: string | null
   subject: string | null
+  kind: $Enums.AssessmentKind | null
+  source: $Enums.ContentSource | null
   durationMinutes: number | null
   instructions: string | null
   maximumMarks: number | null
@@ -83,6 +87,8 @@ export type AssessmentCountAggregateOutputType = {
   board: number
   grade: number
   subject: number
+  kind: number
+  source: number
   durationMinutes: number
   instructions: number
   maximumMarks: number
@@ -114,6 +120,8 @@ export type AssessmentMinAggregateInputType = {
   board?: true
   grade?: true
   subject?: true
+  kind?: true
+  source?: true
   durationMinutes?: true
   instructions?: true
   maximumMarks?: true
@@ -133,6 +141,8 @@ export type AssessmentMaxAggregateInputType = {
   board?: true
   grade?: true
   subject?: true
+  kind?: true
+  source?: true
   durationMinutes?: true
   instructions?: true
   maximumMarks?: true
@@ -152,6 +162,8 @@ export type AssessmentCountAggregateInputType = {
   board?: true
   grade?: true
   subject?: true
+  kind?: true
+  source?: true
   durationMinutes?: true
   instructions?: true
   maximumMarks?: true
@@ -258,6 +270,8 @@ export type AssessmentGroupByOutputType = {
   board: string
   grade: string
   subject: string
+  kind: $Enums.AssessmentKind
+  source: $Enums.ContentSource
   durationMinutes: number | null
   instructions: string | null
   maximumMarks: number
@@ -300,6 +314,8 @@ export type AssessmentWhereInput = {
   board?: Prisma.StringFilter<"Assessment"> | string
   grade?: Prisma.StringFilter<"Assessment"> | string
   subject?: Prisma.StringFilter<"Assessment"> | string
+  kind?: Prisma.EnumAssessmentKindFilter<"Assessment"> | $Enums.AssessmentKind
+  source?: Prisma.EnumContentSourceFilter<"Assessment"> | $Enums.ContentSource
   durationMinutes?: Prisma.IntNullableFilter<"Assessment"> | number | null
   instructions?: Prisma.StringNullableFilter<"Assessment"> | string | null
   maximumMarks?: Prisma.IntFilter<"Assessment"> | number
@@ -322,6 +338,8 @@ export type AssessmentOrderByWithRelationInput = {
   board?: Prisma.SortOrder
   grade?: Prisma.SortOrder
   subject?: Prisma.SortOrder
+  kind?: Prisma.SortOrder
+  source?: Prisma.SortOrder
   durationMinutes?: Prisma.SortOrderInput | Prisma.SortOrder
   instructions?: Prisma.SortOrderInput | Prisma.SortOrder
   maximumMarks?: Prisma.SortOrder
@@ -347,6 +365,8 @@ export type AssessmentWhereUniqueInput = Prisma.AtLeast<{
   board?: Prisma.StringFilter<"Assessment"> | string
   grade?: Prisma.StringFilter<"Assessment"> | string
   subject?: Prisma.StringFilter<"Assessment"> | string
+  kind?: Prisma.EnumAssessmentKindFilter<"Assessment"> | $Enums.AssessmentKind
+  source?: Prisma.EnumContentSourceFilter<"Assessment"> | $Enums.ContentSource
   durationMinutes?: Prisma.IntNullableFilter<"Assessment"> | number | null
   instructions?: Prisma.StringNullableFilter<"Assessment"> | string | null
   maximumMarks?: Prisma.IntFilter<"Assessment"> | number
@@ -369,6 +389,8 @@ export type AssessmentOrderByWithAggregationInput = {
   board?: Prisma.SortOrder
   grade?: Prisma.SortOrder
   subject?: Prisma.SortOrder
+  kind?: Prisma.SortOrder
+  source?: Prisma.SortOrder
   durationMinutes?: Prisma.SortOrderInput | Prisma.SortOrder
   instructions?: Prisma.SortOrderInput | Prisma.SortOrder
   maximumMarks?: Prisma.SortOrder
@@ -396,6 +418,8 @@ export type AssessmentScalarWhereWithAggregatesInput = {
   board?: Prisma.StringWithAggregatesFilter<"Assessment"> | string
   grade?: Prisma.StringWithAggregatesFilter<"Assessment"> | string
   subject?: Prisma.StringWithAggregatesFilter<"Assessment"> | string
+  kind?: Prisma.EnumAssessmentKindWithAggregatesFilter<"Assessment"> | $Enums.AssessmentKind
+  source?: Prisma.EnumContentSourceWithAggregatesFilter<"Assessment"> | $Enums.ContentSource
   durationMinutes?: Prisma.IntNullableWithAggregatesFilter<"Assessment"> | number | null
   instructions?: Prisma.StringNullableWithAggregatesFilter<"Assessment"> | string | null
   maximumMarks?: Prisma.IntWithAggregatesFilter<"Assessment"> | number
@@ -414,6 +438,8 @@ export type AssessmentCreateInput = {
   board: string
   grade: string
   subject: string
+  kind?: $Enums.AssessmentKind
+  source?: $Enums.ContentSource
   durationMinutes?: number | null
   instructions?: string | null
   maximumMarks?: number
@@ -436,6 +462,8 @@ export type AssessmentUncheckedCreateInput = {
   board: string
   grade: string
   subject: string
+  kind?: $Enums.AssessmentKind
+  source?: $Enums.ContentSource
   durationMinutes?: number | null
   instructions?: string | null
   maximumMarks?: number
@@ -456,6 +484,8 @@ export type AssessmentUpdateInput = {
   board?: Prisma.StringFieldUpdateOperationsInput | string
   grade?: Prisma.StringFieldUpdateOperationsInput | string
   subject?: Prisma.StringFieldUpdateOperationsInput | string
+  kind?: Prisma.EnumAssessmentKindFieldUpdateOperationsInput | $Enums.AssessmentKind
+  source?: Prisma.EnumContentSourceFieldUpdateOperationsInput | $Enums.ContentSource
   durationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   instructions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maximumMarks?: Prisma.IntFieldUpdateOperationsInput | number
@@ -478,6 +508,8 @@ export type AssessmentUncheckedUpdateInput = {
   board?: Prisma.StringFieldUpdateOperationsInput | string
   grade?: Prisma.StringFieldUpdateOperationsInput | string
   subject?: Prisma.StringFieldUpdateOperationsInput | string
+  kind?: Prisma.EnumAssessmentKindFieldUpdateOperationsInput | $Enums.AssessmentKind
+  source?: Prisma.EnumContentSourceFieldUpdateOperationsInput | $Enums.ContentSource
   durationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   instructions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maximumMarks?: Prisma.IntFieldUpdateOperationsInput | number
@@ -499,6 +531,8 @@ export type AssessmentCreateManyInput = {
   board: string
   grade: string
   subject: string
+  kind?: $Enums.AssessmentKind
+  source?: $Enums.ContentSource
   durationMinutes?: number | null
   instructions?: string | null
   maximumMarks?: number
@@ -517,6 +551,8 @@ export type AssessmentUpdateManyMutationInput = {
   board?: Prisma.StringFieldUpdateOperationsInput | string
   grade?: Prisma.StringFieldUpdateOperationsInput | string
   subject?: Prisma.StringFieldUpdateOperationsInput | string
+  kind?: Prisma.EnumAssessmentKindFieldUpdateOperationsInput | $Enums.AssessmentKind
+  source?: Prisma.EnumContentSourceFieldUpdateOperationsInput | $Enums.ContentSource
   durationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   instructions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maximumMarks?: Prisma.IntFieldUpdateOperationsInput | number
@@ -536,6 +572,8 @@ export type AssessmentUncheckedUpdateManyInput = {
   board?: Prisma.StringFieldUpdateOperationsInput | string
   grade?: Prisma.StringFieldUpdateOperationsInput | string
   subject?: Prisma.StringFieldUpdateOperationsInput | string
+  kind?: Prisma.EnumAssessmentKindFieldUpdateOperationsInput | $Enums.AssessmentKind
+  source?: Prisma.EnumContentSourceFieldUpdateOperationsInput | $Enums.ContentSource
   durationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   instructions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maximumMarks?: Prisma.IntFieldUpdateOperationsInput | number
@@ -565,6 +603,8 @@ export type AssessmentCountOrderByAggregateInput = {
   board?: Prisma.SortOrder
   grade?: Prisma.SortOrder
   subject?: Prisma.SortOrder
+  kind?: Prisma.SortOrder
+  source?: Prisma.SortOrder
   durationMinutes?: Prisma.SortOrder
   instructions?: Prisma.SortOrder
   maximumMarks?: Prisma.SortOrder
@@ -589,6 +629,8 @@ export type AssessmentMaxOrderByAggregateInput = {
   board?: Prisma.SortOrder
   grade?: Prisma.SortOrder
   subject?: Prisma.SortOrder
+  kind?: Prisma.SortOrder
+  source?: Prisma.SortOrder
   durationMinutes?: Prisma.SortOrder
   instructions?: Prisma.SortOrder
   maximumMarks?: Prisma.SortOrder
@@ -608,6 +650,8 @@ export type AssessmentMinOrderByAggregateInput = {
   board?: Prisma.SortOrder
   grade?: Prisma.SortOrder
   subject?: Prisma.SortOrder
+  kind?: Prisma.SortOrder
+  source?: Prisma.SortOrder
   durationMinutes?: Prisma.SortOrder
   instructions?: Prisma.SortOrder
   maximumMarks?: Prisma.SortOrder
@@ -670,6 +714,14 @@ export type AssessmentUncheckedUpdateManyWithoutTeacherNestedInput = {
   deleteMany?: Prisma.AssessmentScalarWhereInput | Prisma.AssessmentScalarWhereInput[]
 }
 
+export type EnumAssessmentKindFieldUpdateOperationsInput = {
+  set?: $Enums.AssessmentKind
+}
+
+export type EnumContentSourceFieldUpdateOperationsInput = {
+  set?: $Enums.ContentSource
+}
+
 export type NullableIntFieldUpdateOperationsInput = {
   set?: number | null
   increment?: number
@@ -726,6 +778,8 @@ export type AssessmentCreateWithoutTeacherInput = {
   board: string
   grade: string
   subject: string
+  kind?: $Enums.AssessmentKind
+  source?: $Enums.ContentSource
   durationMinutes?: number | null
   instructions?: string | null
   maximumMarks?: number
@@ -746,6 +800,8 @@ export type AssessmentUncheckedCreateWithoutTeacherInput = {
   board: string
   grade: string
   subject: string
+  kind?: $Enums.AssessmentKind
+  source?: $Enums.ContentSource
   durationMinutes?: number | null
   instructions?: string | null
   maximumMarks?: number
@@ -796,6 +852,8 @@ export type AssessmentScalarWhereInput = {
   board?: Prisma.StringFilter<"Assessment"> | string
   grade?: Prisma.StringFilter<"Assessment"> | string
   subject?: Prisma.StringFilter<"Assessment"> | string
+  kind?: Prisma.EnumAssessmentKindFilter<"Assessment"> | $Enums.AssessmentKind
+  source?: Prisma.EnumContentSourceFilter<"Assessment"> | $Enums.ContentSource
   durationMinutes?: Prisma.IntNullableFilter<"Assessment"> | number | null
   instructions?: Prisma.StringNullableFilter<"Assessment"> | string | null
   maximumMarks?: Prisma.IntFilter<"Assessment"> | number
@@ -814,6 +872,8 @@ export type AssessmentCreateWithoutQuestionsInput = {
   board: string
   grade: string
   subject: string
+  kind?: $Enums.AssessmentKind
+  source?: $Enums.ContentSource
   durationMinutes?: number | null
   instructions?: string | null
   maximumMarks?: number
@@ -835,6 +895,8 @@ export type AssessmentUncheckedCreateWithoutQuestionsInput = {
   board: string
   grade: string
   subject: string
+  kind?: $Enums.AssessmentKind
+  source?: $Enums.ContentSource
   durationMinutes?: number | null
   instructions?: string | null
   maximumMarks?: number
@@ -870,6 +932,8 @@ export type AssessmentUpdateWithoutQuestionsInput = {
   board?: Prisma.StringFieldUpdateOperationsInput | string
   grade?: Prisma.StringFieldUpdateOperationsInput | string
   subject?: Prisma.StringFieldUpdateOperationsInput | string
+  kind?: Prisma.EnumAssessmentKindFieldUpdateOperationsInput | $Enums.AssessmentKind
+  source?: Prisma.EnumContentSourceFieldUpdateOperationsInput | $Enums.ContentSource
   durationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   instructions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maximumMarks?: Prisma.IntFieldUpdateOperationsInput | number
@@ -891,6 +955,8 @@ export type AssessmentUncheckedUpdateWithoutQuestionsInput = {
   board?: Prisma.StringFieldUpdateOperationsInput | string
   grade?: Prisma.StringFieldUpdateOperationsInput | string
   subject?: Prisma.StringFieldUpdateOperationsInput | string
+  kind?: Prisma.EnumAssessmentKindFieldUpdateOperationsInput | $Enums.AssessmentKind
+  source?: Prisma.EnumContentSourceFieldUpdateOperationsInput | $Enums.ContentSource
   durationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   instructions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maximumMarks?: Prisma.IntFieldUpdateOperationsInput | number
@@ -910,6 +976,8 @@ export type AssessmentCreateWithoutAttemptsInput = {
   board: string
   grade: string
   subject: string
+  kind?: $Enums.AssessmentKind
+  source?: $Enums.ContentSource
   durationMinutes?: number | null
   instructions?: string | null
   maximumMarks?: number
@@ -931,6 +999,8 @@ export type AssessmentUncheckedCreateWithoutAttemptsInput = {
   board: string
   grade: string
   subject: string
+  kind?: $Enums.AssessmentKind
+  source?: $Enums.ContentSource
   durationMinutes?: number | null
   instructions?: string | null
   maximumMarks?: number
@@ -966,6 +1036,8 @@ export type AssessmentUpdateWithoutAttemptsInput = {
   board?: Prisma.StringFieldUpdateOperationsInput | string
   grade?: Prisma.StringFieldUpdateOperationsInput | string
   subject?: Prisma.StringFieldUpdateOperationsInput | string
+  kind?: Prisma.EnumAssessmentKindFieldUpdateOperationsInput | $Enums.AssessmentKind
+  source?: Prisma.EnumContentSourceFieldUpdateOperationsInput | $Enums.ContentSource
   durationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   instructions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maximumMarks?: Prisma.IntFieldUpdateOperationsInput | number
@@ -987,6 +1059,8 @@ export type AssessmentUncheckedUpdateWithoutAttemptsInput = {
   board?: Prisma.StringFieldUpdateOperationsInput | string
   grade?: Prisma.StringFieldUpdateOperationsInput | string
   subject?: Prisma.StringFieldUpdateOperationsInput | string
+  kind?: Prisma.EnumAssessmentKindFieldUpdateOperationsInput | $Enums.AssessmentKind
+  source?: Prisma.EnumContentSourceFieldUpdateOperationsInput | $Enums.ContentSource
   durationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   instructions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maximumMarks?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1006,6 +1080,8 @@ export type AssessmentCreateManyTeacherInput = {
   board: string
   grade: string
   subject: string
+  kind?: $Enums.AssessmentKind
+  source?: $Enums.ContentSource
   durationMinutes?: number | null
   instructions?: string | null
   maximumMarks?: number
@@ -1024,6 +1100,8 @@ export type AssessmentUpdateWithoutTeacherInput = {
   board?: Prisma.StringFieldUpdateOperationsInput | string
   grade?: Prisma.StringFieldUpdateOperationsInput | string
   subject?: Prisma.StringFieldUpdateOperationsInput | string
+  kind?: Prisma.EnumAssessmentKindFieldUpdateOperationsInput | $Enums.AssessmentKind
+  source?: Prisma.EnumContentSourceFieldUpdateOperationsInput | $Enums.ContentSource
   durationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   instructions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maximumMarks?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1044,6 +1122,8 @@ export type AssessmentUncheckedUpdateWithoutTeacherInput = {
   board?: Prisma.StringFieldUpdateOperationsInput | string
   grade?: Prisma.StringFieldUpdateOperationsInput | string
   subject?: Prisma.StringFieldUpdateOperationsInput | string
+  kind?: Prisma.EnumAssessmentKindFieldUpdateOperationsInput | $Enums.AssessmentKind
+  source?: Prisma.EnumContentSourceFieldUpdateOperationsInput | $Enums.ContentSource
   durationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   instructions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maximumMarks?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1064,6 +1144,8 @@ export type AssessmentUncheckedUpdateManyWithoutTeacherInput = {
   board?: Prisma.StringFieldUpdateOperationsInput | string
   grade?: Prisma.StringFieldUpdateOperationsInput | string
   subject?: Prisma.StringFieldUpdateOperationsInput | string
+  kind?: Prisma.EnumAssessmentKindFieldUpdateOperationsInput | $Enums.AssessmentKind
+  source?: Prisma.EnumContentSourceFieldUpdateOperationsInput | $Enums.ContentSource
   durationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   instructions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maximumMarks?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1123,6 +1205,8 @@ export type AssessmentSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   board?: boolean
   grade?: boolean
   subject?: boolean
+  kind?: boolean
+  source?: boolean
   durationMinutes?: boolean
   instructions?: boolean
   maximumMarks?: boolean
@@ -1146,6 +1230,8 @@ export type AssessmentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   board?: boolean
   grade?: boolean
   subject?: boolean
+  kind?: boolean
+  source?: boolean
   durationMinutes?: boolean
   instructions?: boolean
   maximumMarks?: boolean
@@ -1166,6 +1252,8 @@ export type AssessmentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   board?: boolean
   grade?: boolean
   subject?: boolean
+  kind?: boolean
+  source?: boolean
   durationMinutes?: boolean
   instructions?: boolean
   maximumMarks?: boolean
@@ -1186,6 +1274,8 @@ export type AssessmentSelectScalar = {
   board?: boolean
   grade?: boolean
   subject?: boolean
+  kind?: boolean
+  source?: boolean
   durationMinutes?: boolean
   instructions?: boolean
   maximumMarks?: boolean
@@ -1196,7 +1286,7 @@ export type AssessmentSelectScalar = {
   updatedAt?: boolean
 }
 
-export type AssessmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "assessmentId" | "teacherId" | "title" | "description" | "board" | "grade" | "subject" | "durationMinutes" | "instructions" | "maximumMarks" | "startAt" | "endAt" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["assessment"]>
+export type AssessmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "assessmentId" | "teacherId" | "title" | "description" | "board" | "grade" | "subject" | "kind" | "source" | "durationMinutes" | "instructions" | "maximumMarks" | "startAt" | "endAt" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["assessment"]>
 export type AssessmentInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   teacher?: boolean | Prisma.TeacherDefaultArgs<ExtArgs>
   questions?: boolean | Prisma.Assessment$questionsArgs<ExtArgs>
@@ -1226,6 +1316,8 @@ export type $AssessmentPayload<ExtArgs extends runtime.Types.Extensions.Internal
     board: string
     grade: string
     subject: string
+    kind: $Enums.AssessmentKind
+    source: $Enums.ContentSource
     durationMinutes: number | null
     instructions: string | null
     maximumMarks: number
@@ -1668,6 +1760,8 @@ export interface AssessmentFieldRefs {
   readonly board: Prisma.FieldRef<"Assessment", 'String'>
   readonly grade: Prisma.FieldRef<"Assessment", 'String'>
   readonly subject: Prisma.FieldRef<"Assessment", 'String'>
+  readonly kind: Prisma.FieldRef<"Assessment", 'AssessmentKind'>
+  readonly source: Prisma.FieldRef<"Assessment", 'ContentSource'>
   readonly durationMinutes: Prisma.FieldRef<"Assessment", 'Int'>
   readonly instructions: Prisma.FieldRef<"Assessment", 'String'>
   readonly maximumMarks: Prisma.FieldRef<"Assessment", 'Int'>

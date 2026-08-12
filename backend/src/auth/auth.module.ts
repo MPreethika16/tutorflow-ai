@@ -4,7 +4,6 @@ import {
   JwtModule,
   type JwtModuleOptions,
 } from '@nestjs/jwt';
-import type { StringValue } from 'ms';
 
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -20,7 +19,9 @@ import { RolesGuard } from './guards/roles.guard';
         configService: ConfigService,
       ): JwtModuleOptions => {
         const secret =
-          configService.get<string>('JWT_ACCESS_SECRET');
+          configService.get<string>(
+            'JWT_ACCESS_SECRET',
+          );
 
         if (!secret) {
           throw new Error(
@@ -28,7 +29,7 @@ import { RolesGuard } from './guards/roles.guard';
           );
         }
 
-          const expiresIn =
+        const expiresIn =
           configService.get<number>(
             'JWT_ACCESS_EXPIRES_IN_SECONDS',
             900,
@@ -44,8 +45,20 @@ import { RolesGuard } from './guards/roles.guard';
     }),
   ],
 
-  controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard, RolesGuard],
-  exports: [AuthService, JwtAuthGuard, RolesGuard, JwtModule],
+  controllers: [
+    AuthController,
+  ],
+
+  providers: [
+    AuthService,
+    JwtAuthGuard,
+    RolesGuard,
+  ],
+
+  exports: [
+    JwtModule,
+    JwtAuthGuard,
+    RolesGuard,
+  ],
 })
 export class AuthModule {}

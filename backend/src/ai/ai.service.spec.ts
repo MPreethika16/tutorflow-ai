@@ -1,8 +1,9 @@
 import {
   InternalServerErrorException,
+   ServiceUnavailableException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-
+import { AiProviderError } from './errors/ai-provider.error';
 import { AiService } from './ai.service';
 import type {
   AiProvider,
@@ -140,33 +141,33 @@ describe('AiService', () => {
     );
   });
 
-  it('propagates provider failures', async () => {
-    providerMock.generateText.mockRejectedValue(
-      new InternalServerErrorException(
-        'AI provider request failed',
-      ),
-    );
+it('maps unexpected provider failures to safe 503 during structured generation', async () => {
+  providerMock.generateText.mockRejectedValue(
+    new Error(
+      'AI provider request failed',
+    ),
+  );
 
-    await expect(
-      service.generateStructured(
-        {
-          messages: [
-            {
-              role: 'user',
-              content:
-                'Analyze a topic.',
-            },
-          ],
-        },
-        aiTopicAnalysisSchema,
-        'topic_analysis',
-      ),
-    ).rejects.toThrow(
-      new InternalServerErrorException(
-        'AI provider request failed',
-      ),
-    );
-  });
+  await expect(
+    service.generateStructured(
+      {
+        messages: [
+          {
+            role: 'user',
+            content:
+              'Analyze a topic.',
+          },
+        ],
+      },
+      aiTopicAnalysisSchema,
+      'topic_analysis',
+    ),
+  ).rejects.toThrow(
+    new ServiceUnavailableException(
+      'AI service is temporarily unavailable',
+    ),
+  );
+});
 
   it('passes structured output schema to the provider', async () => {
     providerMock.generateText.mockResolvedValue({
@@ -251,4 +252,164 @@ describe('AiService', () => {
       ],
     });
   });
+
+  it('maps provider configuration errors to 500 without leaking provider details', async () => {
+  providerMock.generateText.mockRejectedValue(
+    new AiProviderError(
+      'CONFIGURATION',
+      'OPENROUTER_API_KEY missing',
+    ),
+  );
+
+  await expect(
+    service.generateText({
+      messages: [
+        {
+          role: 'user',
+          content: 'Hello',
+        },
+      ],
+    }),
+  ).rejects.toThrow(
+    new InternalServerErrorException(
+      'AI service is not configured',
+    ),
+  );
+});
+
+it('maps provider rate-limit errors to safe 503', async () => {
+  providerMock.generateText.mockRejectedValue(
+    new AiProviderError(
+      'RATE_LIMIT',
+      'OpenRouter 429 rate limit exceeded',
+      429,
+    ),
+  );
+
+  await expect(
+    service.generateText({
+      messages: [
+        {
+          role: 'user',
+          content: 'Hello',
+        },
+      ],
+    }),
+  ).rejects.toThrow(
+    new ServiceUnavailableException(
+      'AI service is temporarily unavailable',
+    ),
+  );
+});
+
+it('maps provider timeout errors to safe 503', async () => {
+  providerMock.generateText.mockRejectedValue(
+    new AiProviderError(
+      'TIMEOUT',
+      'Request timed out after 15000ms',
+    ),
+  );
+
+  await expect(
+    service.generateText({
+      messages: [
+        {
+          role: 'user',
+          content: 'Hello',
+        },
+      ],
+    }),
+  ).rejects.toThrow(
+    new ServiceUnavailableException(
+      'AI service is temporarily unavailable',
+    ),
+  );
+});
+
+it('maps provider unavailable errors to safe 503', async () => {
+  providerMock.generateText.mockRejectedValue(
+    new AiProviderError(
+      'UNAVAILABLE',
+      'OpenRouter 503 provider unavailable',
+      503,
+    ),
+  );
+
+  await expect(
+    service.generateText({
+      messages: [
+        {
+          role: 'user',
+          content: 'Hello',
+        },
+      ],
+    }),
+  ).rejects.toThrow(
+    new ServiceUnavailableException(
+      'AI service is temporarily unavailable',
+    ),
+  );
+});
+
+it('does not leak provider-specific error details', async () => {
+  providerMock.generateText.mockRejectedValue(
+    new AiProviderError(
+      'AUTHENTICATION',
+      'Invalid OpenRouter API key sk-secret-example',
+      401,
+    ),
+  );
+
+  try {
+    await service.generateText({
+      messages: [
+        {
+          role: 'user',
+          content: 'Hello',
+        },
+      ],
+    });
+  } catch (error) {
+    expect(error).toBeInstanceOf(
+      ServiceUnavailableException,
+    );
+
+    expect(
+      (error as Error).message,
+    ).toBe(
+      'AI service is temporarily unavailable',
+    );
+
+    expect(
+      (error as Error).message,
+    ).not.toContain(
+      'sk-secret-example',
+    );
+  }
+});
+
+it('maps unknown provider failures to safe 503', async () => {
+  providerMock.generateText.mockRejectedValue(
+    new Error(
+      'unexpected provider failure',
+    ),
+  );
+
+  await expect(
+    service.generateText({
+      messages: [
+        {
+          role: 'user',
+          content: 'Hello',
+        },
+      ],
+    }),
+  ).rejects.toThrow(
+    new ServiceUnavailableException(
+      'AI service is temporarily unavailable',
+    ),
+  );
+});
+
+
 });

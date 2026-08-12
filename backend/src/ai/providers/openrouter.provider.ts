@@ -1,8 +1,6 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
+import { AiProviderError } from '../errors/ai-provider.error';
 import type {
   AiGenerateTextRequest,
   AiGenerateTextResponse,
@@ -34,15 +32,10 @@ export class OpenRouterProvider
       process.env.OPENROUTER_BASE_URL ??
       'https://openrouter.ai/api/v1';
 
-    if (!apiKey) {
-      throw new InternalServerErrorException(
-        'AI provider is not configured',
-      );
-    }
-
-    if (!model) {
-      throw new InternalServerErrorException(
-        'AI model is not configured',
+    if (!apiKey || !model) {
+      throw new AiProviderError(
+        'CONFIGURATION',
+        'AI provider configuration is missing',
       );
     }
 
@@ -65,32 +58,55 @@ export class OpenRouterProvider
     }
 
     let response: Response;
+    const controller =
+  new AbortController();
+
+    const timeout =
+      setTimeout(
+        () => controller.abort(),
+        15_000,
+      );
 
     try {
-      response = await fetch(
-        `${baseUrl}/chat/completions`,
-        {
-          method: 'POST',
+  response = await fetch(
+    `${baseUrl}/chat/completions`,
+    {
+      method: 'POST',
 
-          headers: {
-            Authorization:
-              `Bearer ${apiKey}`,
-            'Content-Type':
-              'application/json',
-          },
+      headers: {
+        Authorization:
+          `Bearer ${apiKey}`,
+        'Content-Type':
+          'application/json',
+      },
 
-          body: JSON.stringify(body),
-        },
-      );
-    } catch {
-      throw new InternalServerErrorException(
-        'AI provider request failed',
-      );
-    }
+      body: JSON.stringify(body),
+
+      signal: controller.signal,
+    },
+  );
+} catch (error: unknown) {
+  if (
+    error instanceof Error &&
+    error.name === 'AbortError'
+  ) {
+    throw new AiProviderError(
+      'TIMEOUT',
+      'AI provider request timed out',
+    );
+  }
+
+  throw new AiProviderError(
+    'UNAVAILABLE',
+    'AI provider request failed',
+  );
+} finally {
+  clearTimeout(timeout);
+}
 
     if (!response.ok) {
-      throw new InternalServerErrorException(
-        'AI provider request failed',
+      throw this.mapHttpError(
+        response.status,
       );
     }
 
@@ -100,8 +116,9 @@ export class OpenRouterProvider
       data =
         (await response.json()) as OpenRouterResponse;
     } catch {
-      throw new InternalServerErrorException(
-        'AI provider returned an invalid response',
+      throw new AiProviderError(
+        'INVALID_RESPONSE',
+        'AI provider returned invalid JSON',
       );
     }
 
@@ -113,8 +130,9 @@ export class OpenRouterProvider
       typeof content !== 'string' ||
       content.trim().length === 0
     ) {
-      throw new InternalServerErrorException(
-        'AI provider returned an invalid response',
+      throw new AiProviderError(
+        'INVALID_RESPONSE',
+        'AI provider response did not contain content',
       );
     }
 
@@ -122,4 +140,46 @@ export class OpenRouterProvider
       content,
     };
   }
+
+  private mapHttpError(
+    statusCode: number,
+  ): AiProviderError {
+    if (
+      statusCode === 401 ||
+      statusCode === 403
+    ) {
+      return new AiProviderError(
+        'AUTHENTICATION',
+        'AI provider authentication failed',
+        statusCode,
+      );
+    }
+
+    if (statusCode === 429) {
+      return new AiProviderError(
+        'RATE_LIMIT',
+        'AI provider rate limit exceeded',
+        statusCode,
+      );
+    }
+
+    if (
+      statusCode === 502 ||
+      statusCode === 503 ||
+      statusCode === 504
+    ) {
+      return new AiProviderError(
+        'UNAVAILABLE',
+        'AI provider is unavailable',
+        statusCode,
+      );
+    }
+
+    return new AiProviderError(
+      'UNKNOWN',
+      'AI provider request failed',
+      statusCode,
+    );
+  }
+  
 }

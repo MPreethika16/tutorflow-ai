@@ -2,6 +2,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import {
   toJSONSchema,
@@ -19,6 +20,7 @@ import {
   type AiTopicAnalysis,
 } from './schemas/ai-topic-analysis.schema';
 
+import { AiProviderError } from './errors/ai-provider.error';
 @Injectable()
 export class AiService {
   constructor(
@@ -26,13 +28,17 @@ export class AiService {
     private readonly provider: AiProvider,
   ) {}
 
-  generateText(
-    request: AiGenerateTextRequest,
-  ): Promise<AiGenerateTextResponse> {
-    return this.provider.generateText(
+  async generateText(
+  request: AiGenerateTextRequest,
+): Promise<AiGenerateTextResponse> {
+  try {
+    return await this.provider.generateText(
       request,
     );
+  } catch (error: unknown) {
+    throw this.mapProviderError(error);
   }
+}
 
   async generateStructured<T>(
     request: AiGenerateTextRequest,
@@ -43,19 +49,19 @@ export class AiService {
       toJSONSchema(schema);
 
     const response =
-      await this.provider.generateText({
-        ...request,
+  await this.generateText({
+    ...request,
 
-        structuredOutput: {
-          name: schemaName,
+    structuredOutput: {
+      name: schemaName,
 
-          schema:
-            jsonSchema as Record<
-              string,
-              unknown
-            >,
-        },
-      });
+      schema:
+        jsonSchema as Record<
+          string,
+          unknown
+        >,
+    },
+  });
 
     let parsed: unknown;
 
@@ -80,7 +86,26 @@ export class AiService {
     return result.data;
   }
 
-  // Temporary integration test method.
-  // Remove this after #40 validation is complete.
+  
+
+  private mapProviderError(
+  error: unknown,
+): Error {
+  if (!(error instanceof AiProviderError)) {
+    return new ServiceUnavailableException(
+      'AI service is temporarily unavailable',
+    );
+  }
+
+  if (error.code === 'CONFIGURATION') {
+    return new InternalServerErrorException(
+      'AI service is not configured',
+    );
+  }
+
+  return new ServiceUnavailableException(
+    'AI service is temporarily unavailable',
+  );
+}
  
 }

@@ -16,6 +16,8 @@ export type GenerationStatus =
   | 'VALIDATING'
   | 'REPAIRING'
   | 'READY'
+  | 'PERSISTING'
+  | 'COMPLETED'
   | 'FAILED';
 
 export type GenerationState = {
@@ -33,4 +35,10 @@ export type GenerationState = {
   repairCount: number;
 
   status: GenerationStatus;
+
+  persistedAssessment?: {
+    assessmentId: string;
+    source: string;
+    status: string;
+  };
 };

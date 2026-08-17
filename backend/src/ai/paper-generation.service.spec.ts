@@ -19,6 +19,15 @@ import {
   TeacherStyleRetriever,
 } from './retrieval/teacher-style-retriever.service';
 
+
+import {
+  PaperRepairService,
+} from './repair/paper-repair.service';
+
+import {
+  PaperValidationFailedError,
+} from './validation/paper-validation.error';
+
 describe('PaperGenerationService', () => {
   let service: PaperGenerationService;
 
@@ -34,6 +43,9 @@ describe('PaperGenerationService', () => {
     retrieve: jest.fn(),
   };
 
+  const paperRepairServiceMock = {
+  repair: jest.fn(),    
+  };
   const dto = {
     board: 'CBSE',
     grade: '10',
@@ -139,6 +151,11 @@ describe('PaperGenerationService', () => {
               TeacherStyleRetriever,
             useValue:
               teacherStyleRetrieverMock,
+          },
+
+          {
+            provide: PaperRepairService,
+            useValue: paperRepairServiceMock,
           },
         ],
       }).compile();
@@ -270,46 +287,39 @@ describe('PaperGenerationService', () => {
     );
   });
 
-  it('works without additional instructions', async () => {
-    aiServiceMock
-      .generateStructured
-      .mockResolvedValue(
-        generatedPaper,
-      );
+ it('works without additional instructions', async () => {
+  aiServiceMock.generateStructured.mockResolvedValue(
+    generatedPaper,
+  );
 
-    await service.generate({
-      board: 'CBSE',
-      grade: '10',
-      subject: 'Mathematics',
-      topic:
-        'Quadratic Equations',
-      kind:
-        AssessmentKind.PRACTICE,
-      totalMarks: 5,
-      durationMinutes: 20,
-    });
-
-    const [request] =
-      aiServiceMock
-        .generateStructured
-        .mock.calls[0];
-
-    const userMessage =
-      request.messages.find(
-        (message: {
-          role: string;
-          content: string;
-        }) =>
-          message.role ===
-          'user',
-      );
-
-    expect(
-      userMessage.content,
-    ).not.toContain(
-      'Additional instructions:',
-    );
+  await service.generate({
+    board: 'CBSE',
+    grade: '10',
+    subject: 'Mathematics',
+    topic: 'Quadratic Equations',
+    kind: AssessmentKind.PRACTICE,
+    totalMarks: 5,
+    durationMinutes: 45,
   });
+
+  const [request] =
+    aiServiceMock.generateStructured.mock.calls[0];
+
+  const userMessage =
+    request.messages.find(
+      (message: {
+        role: string;
+        content: string;
+      }) =>
+        message.role === 'user',
+    );
+
+  expect(
+    userMessage.content,
+  ).not.toContain(
+    'Additional instructions:',
+  );
+});
 
   it('uses teacher history when generating with teacher style', async () => {
     teacherStyleRetrieverMock
@@ -564,4 +574,187 @@ describe('PaperGenerationService', () => {
       aiServiceMock.generateStructured,
     ).not.toHaveBeenCalled();
   });
+
+  it('returns immediately when the generated paper is valid', async () => {
+  aiServiceMock.generateStructured.mockResolvedValue(
+    generatedPaper,
+  );
+
+  const result =
+    await service.generate(dto);
+
+  expect(result).toEqual(
+    generatedPaper,
+  );
+
+  expect(
+    paperRepairServiceMock.repair,
+  ).not.toHaveBeenCalled();
+});
+
+it('repairs an invalid paper once when the first repair is valid', async () => {
+  const invalidPaper = {
+    ...generatedPaper,
+    durationMinutes: 99,
+  };
+
+  const repairedPaper = {
+    ...generatedPaper,
+    durationMinutes:
+      dto.durationMinutes,
+  };
+
+  aiServiceMock.generateStructured.mockResolvedValue(
+    invalidPaper,
+  );
+
+  paperRepairServiceMock.repair.mockResolvedValue(
+    repairedPaper,
+  );
+
+  const result =
+    await service.generate(dto);
+
+  expect(result).toEqual(
+    repairedPaper,
+  );
+
+  expect(
+    paperRepairServiceMock.repair,
+  ).toHaveBeenCalledTimes(1);
+
+  expect(
+    paperRepairServiceMock.repair,
+  ).toHaveBeenCalledWith(
+    dto,
+    invalidPaper,
+    expect.arrayContaining([
+      expect.objectContaining({
+        code: 'DURATION_MISMATCH',
+      }),
+    ]),
+  );
+});
+
+it('allows a second repair when the first repair is still invalid', async () => {
+  const initialPaper = {
+    ...generatedPaper,
+    durationMinutes: 99,
+  };
+
+  const firstRepair = {
+    ...generatedPaper,
+    durationMinutes: 60,
+  };
+
+  const secondRepair = {
+    ...generatedPaper,
+    durationMinutes:
+      dto.durationMinutes,
+  };
+
+  aiServiceMock.generateStructured.mockResolvedValue(
+    initialPaper,
+  );
+
+  paperRepairServiceMock.repair
+    .mockResolvedValueOnce(
+      firstRepair,
+    )
+    .mockResolvedValueOnce(
+      secondRepair,
+    );
+
+  const result =
+    await service.generate(dto);
+
+  expect(result).toEqual(
+    secondRepair,
+  );
+
+  expect(
+    paperRepairServiceMock.repair,
+  ).toHaveBeenCalledTimes(2);
+});
+
+
+it('fails after the maximum number of repair attempts', async () => {
+  const invalidPaper = {
+    ...generatedPaper,
+    durationMinutes: 99,
+  };
+
+  aiServiceMock.generateStructured.mockResolvedValue(
+    invalidPaper,
+  );
+
+  paperRepairServiceMock.repair.mockResolvedValue(
+    invalidPaper,
+  );
+
+  await expect(
+    service.generate(dto),
+  ).rejects.toBeInstanceOf(
+    PaperValidationFailedError,
+  );
+
+  expect(
+    paperRepairServiceMock.repair,
+  ).toHaveBeenCalledTimes(2);
+});
+
+it('does not attempt repair when initial AI generation fails', async () => {
+  aiServiceMock.generateStructured.mockRejectedValue(
+    new Error(
+      'AI provider unavailable',
+    ),
+  );
+
+  await expect(
+    service.generate(dto),
+  ).rejects.toThrow(
+    'AI provider unavailable',
+  );
+
+  expect(
+    paperRepairServiceMock.repair,
+  ).not.toHaveBeenCalled();
+});
+
+
+it('does not persist a paper when validation remains invalid after repairs', async () => {
+  const invalidPaper = {
+    ...generatedPaper,
+    durationMinutes: 99,
+  };
+
+  teacherStyleRetrieverMock.retrieve.mockResolvedValue(
+    [],
+  );
+
+  aiServiceMock.generateStructured.mockResolvedValue(
+    invalidPaper,
+  );
+
+  paperRepairServiceMock.repair.mockResolvedValue(
+    invalidPaper,
+  );
+
+  await expect(
+    service.generateAndSaveDraft(
+      'teacher-user-id',
+      dto,
+    ),
+  ).rejects.toBeInstanceOf(
+    PaperValidationFailedError,
+  );
+
+  expect(
+    paperRepairServiceMock.repair,
+  ).toHaveBeenCalledTimes(2);
+
+  expect(
+    persistenceServiceMock.saveDraft,
+  ).not.toHaveBeenCalled();
+});
 });

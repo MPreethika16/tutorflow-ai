@@ -10,6 +10,10 @@ import { AI_PROVIDER } from './providers/ai-provider.token';
 import { OpenRouterProvider } from './providers/openrouter.provider';
 
 import { TeacherStyleRetriever } from './retrieval/teacher-style-retriever.service';
+
+import {
+  PaperRepairService,
+} from './repair/paper-repair.service';
 @Module({
   imports: [
     AuthModule,
@@ -25,6 +29,7 @@ import { TeacherStyleRetriever } from './retrieval/teacher-style-retriever.servi
     GeneratedPaperPersistenceService,
     OpenRouterProvider,
     TeacherStyleRetriever,
+    PaperRepairService,
     {
       provide: AI_PROVIDER,
       useExisting: OpenRouterProvider,

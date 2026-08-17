@@ -7,11 +7,14 @@ import type { GeneratePaperDto } from './dto/generate-paper.dto';
 import { GeneratedPaperPersistenceService } from './generated-paper-persistence.service';
 import { buildPaperGenerationMessages } from './prompts/paper-generation.prompt';
 
+import { buildTeacherStyleContext } from './retrieval/teacher-style-context';
+import { TeacherStyleRetriever } from './retrieval/teacher-style-retriever.service';
 @Injectable()
 export class PaperGenerationService {
   constructor(
     private readonly aiService: AiService,
     private readonly persistenceService: GeneratedPaperPersistenceService,
+     private readonly teacherStyleRetriever: TeacherStyleRetriever,
   ) {}
 
   generate(
@@ -29,12 +32,45 @@ export class PaperGenerationService {
     );
   }
 
+  async generateWithTeacherStyle(
+  teacherUserId: string,
+  dto: GeneratePaperDto,
+): Promise<GeneratedPaper> {
+  const examples =
+    await this.teacherStyleRetriever.retrieve({
+      teacherUserId,
+      board: dto.board,
+      grade: dto.grade,
+      subject: dto.subject,
+    });
+
+  const teacherStyleContext =
+    buildTeacherStyleContext(examples);
+
+  const messages =
+    buildPaperGenerationMessages(
+      dto,
+      teacherStyleContext,
+    );
+
+  return this.aiService.generateStructured(
+    {
+      messages,
+    },
+    generatedPaperSchema,
+    'generated_paper',
+  );
+}
+
   async generateAndSaveDraft(
     teacherUserId: string,
     dto: GeneratePaperDto,
   ) {
     const paper =
-      await this.generate(dto);
+  await this.generateWithTeacherStyle(
+    teacherUserId,
+    dto,
+  );
 
     return this.persistenceService.saveDraft(
       teacherUserId,

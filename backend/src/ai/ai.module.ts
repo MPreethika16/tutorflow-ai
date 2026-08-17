@@ -9,6 +9,7 @@ import { PaperGenerationService } from './paper-generation.service';
 import { AI_PROVIDER } from './providers/ai-provider.token';
 import { OpenRouterProvider } from './providers/openrouter.provider';
 
+import { TeacherStyleRetriever } from './retrieval/teacher-style-retriever.service';
 @Module({
   imports: [
     AuthModule,
@@ -23,6 +24,7 @@ import { OpenRouterProvider } from './providers/openrouter.provider';
     PaperGenerationService,
     GeneratedPaperPersistenceService,
     OpenRouterProvider,
+    TeacherStyleRetriever,
     {
       provide: AI_PROVIDER,
       useExisting: OpenRouterProvider,
@@ -33,6 +35,7 @@ import { OpenRouterProvider } from './providers/openrouter.provider';
     AiService,
     PaperGenerationService,
     GeneratedPaperPersistenceService,
+    TeacherStyleRetriever,
   ],
 })
 export class AiModule {}

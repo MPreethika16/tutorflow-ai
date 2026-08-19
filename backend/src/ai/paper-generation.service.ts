@@ -22,11 +22,15 @@ import {
   PaperRepairService,
 } from './repair/paper-repair.service';
 
+import {
+  GenerationWorkflowService,
+} from './graph/generation-workflow.service';
+
 const MAX_REPAIRS = 2;
 @Injectable()
 export class PaperGenerationService {
   
-  constructor(
+constructor(
   private readonly aiService: AiService,
 
   private readonly persistenceService:
@@ -37,6 +41,9 @@ export class PaperGenerationService {
 
   private readonly paperRepairService:
     PaperRepairService,
+
+  private readonly generationWorkflowService:
+    GenerationWorkflowService,
 ) {}
 
  async generate(
@@ -96,22 +103,15 @@ return this.validateAndRepair(
 );
 }
 
-  async generateAndSaveDraft(
-    teacherUserId: string,
-    dto: GeneratePaperDto,
-  ) {
-    const paper =
-  await this.generateWithTeacherStyle(
+async generateAndSaveDraft(
+  teacherUserId: string,
+  dto: GeneratePaperDto,
+) {
+  return this.generationWorkflowService.run(
     teacherUserId,
     dto,
   );
-
-    return this.persistenceService.saveDraft(
-      teacherUserId,
-      dto,
-      paper,
-    );
-  }
+}
 
   private async validateAndRepair(
   dto: GeneratePaperDto,

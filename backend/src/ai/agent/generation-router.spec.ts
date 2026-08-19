@@ -317,6 +317,7 @@ describe('GenerationAgent', () => {
       grade: '10',
       subject:
         'Mathematics',
+      topic: 'Quadratic Equations',
     });
 
     const [aiRequest] =

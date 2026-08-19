@@ -28,6 +28,9 @@ export async function retrieveStyleNode(
 
       subject:
         state.request.subject,
+
+      topic:
+        state.request.topic,
     });
 
   const teacherContext =

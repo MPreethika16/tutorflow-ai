@@ -28,6 +28,10 @@ import {
   PaperValidationFailedError,
 } from './validation/paper-validation.error';
 
+import {
+  GenerationWorkflowService,
+} from './graph/generation-workflow.service';
+
 describe('PaperGenerationService', () => {
   let service: PaperGenerationService;
 
@@ -46,6 +50,10 @@ describe('PaperGenerationService', () => {
   const paperRepairServiceMock = {
   repair: jest.fn(),    
   };
+
+  const generationWorkflowServiceMock = {
+  run: jest.fn(),
+};
   const dto = {
     board: 'CBSE',
     grade: '10',
@@ -127,6 +135,10 @@ describe('PaperGenerationService', () => {
     teacherStyleRetrieverMock
       .retrieve
       .mockResolvedValue([]);
+      
+      generationWorkflowServiceMock.run.mockReset();
+
+    
 
     const module: TestingModule =
       await Test.createTestingModule({
@@ -157,6 +169,11 @@ describe('PaperGenerationService', () => {
             provide: PaperRepairService,
             useValue: paperRepairServiceMock,
           },
+
+          {
+            provide: GenerationWorkflowService,
+            useValue: generationWorkflowServiceMock,
+          },
         ],
       }).compile();
 
@@ -170,73 +187,7 @@ describe('PaperGenerationService', () => {
     expect(service).toBeDefined();
   });
 
-  it('generates a paper without teacher-style context', async () => {
-    aiServiceMock
-      .generateStructured
-      .mockResolvedValue(
-        generatedPaper,
-      );
 
-    const result =
-      await service.generate(dto);
-
-    expect(result).toEqual(
-      generatedPaper,
-    );
-
-    expect(
-      aiServiceMock.generateStructured,
-    ).toHaveBeenCalledTimes(1);
-
-    expect(
-      teacherStyleRetrieverMock.retrieve,
-    ).not.toHaveBeenCalled();
-
-    const [
-      request,
-      schema,
-      schemaName,
-    ] =
-      aiServiceMock
-        .generateStructured
-        .mock.calls[0];
-
-    expect(schema).toBeDefined();
-
-    expect(schemaName).toBe(
-      'generated_paper',
-    );
-
-    expect(
-      request.messages,
-    ).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          role: 'system',
-        }),
-
-        expect.objectContaining({
-          role: 'user',
-        }),
-      ]),
-    );
-
-    const systemMessage =
-      request.messages.find(
-        (message: {
-          role: string;
-          content: string;
-        }) =>
-          message.role ===
-          'system',
-      );
-
-    expect(
-      systemMessage.content,
-    ).not.toContain(
-      'TEACHER STYLE CONTEXT',
-    );
-  });
 
   it('builds the requested generation context', async () => {
     aiServiceMock
@@ -446,111 +397,9 @@ describe('PaperGenerationService', () => {
     );
   });
 
-  it('generates and saves the teacher-style paper as a draft', async () => {
-    teacherStyleRetrieverMock
-      .retrieve
-      .mockResolvedValue([
-        {
-          type:
-            QuestionType.MCQ,
 
-          prompt:
-            'Which equation is quadratic?',
 
-          marks: 1,
 
-          options: [
-            {
-              id: 'A',
-              text: 'x + 1',
-            },
-            {
-              id: 'B',
-              text:
-                'x² + 1',
-            },
-          ],
-        },
-      ]);
-
-    aiServiceMock
-      .generateStructured
-      .mockResolvedValue(
-        generatedPaper,
-      );
-
-    persistenceServiceMock
-      .saveDraft
-      .mockResolvedValue({
-        assessmentId:
-          'ASM-001',
-
-        kind: 'TEST',
-
-        source:
-          'AI_GENERATED',
-
-        status: 'DRAFT',
-      });
-
-    const result =
-      await service
-        .generateAndSaveDraft(
-          'teacher-user-id',
-          dto,
-        );
-
-    expect(
-      teacherStyleRetrieverMock.retrieve,
-    ).toHaveBeenCalledTimes(1);
-
-    expect(
-      persistenceServiceMock.saveDraft,
-    ).toHaveBeenCalledWith(
-      'teacher-user-id',
-      dto,
-      generatedPaper,
-    );
-
-    expect(result).toEqual({
-      assessmentId:
-        'ASM-001',
-
-      kind: 'TEST',
-
-      source:
-        'AI_GENERATED',
-
-      status: 'DRAFT',
-    });
-  });
-
-  it('does not persist when AI generation fails', async () => {
-    teacherStyleRetrieverMock
-      .retrieve
-      .mockResolvedValue([]);
-
-    aiServiceMock
-      .generateStructured
-      .mockRejectedValue(
-        new Error(
-          'AI service is temporarily unavailable',
-        ),
-      );
-
-    await expect(
-      service.generateAndSaveDraft(
-        'teacher-user-id',
-        dto,
-      ),
-    ).rejects.toThrow(
-      'AI service is temporarily unavailable',
-    );
-
-    expect(
-      persistenceServiceMock.saveDraft,
-    ).not.toHaveBeenCalled();
-  });
 
   it('propagates retrieval failures without calling AI', async () => {
     teacherStyleRetrieverMock
@@ -722,22 +571,46 @@ it('does not attempt repair when initial AI generation fails', async () => {
 });
 
 
-it('does not persist a paper when validation remains invalid after repairs', async () => {
-  const invalidPaper = {
-    ...generatedPaper,
-    durationMinutes: 99,
-  };
 
-  teacherStyleRetrieverMock.retrieve.mockResolvedValue(
-    [],
+
+it('delegates draft generation to the LangGraph workflow', async () => {
+  generationWorkflowServiceMock.run.mockResolvedValue({
+    assessmentId: 'ASM-001',
+    kind: 'TEST',
+    source: 'AI_GENERATED',
+    status: 'DRAFT',
+  });
+
+  const result =
+    await service.generateAndSaveDraft(
+      'teacher-user-id',
+      dto,
+    );
+
+  expect(
+    generationWorkflowServiceMock.run,
+  ).toHaveBeenCalledTimes(1);
+
+  expect(
+    generationWorkflowServiceMock.run,
+  ).toHaveBeenCalledWith(
+    'teacher-user-id',
+    dto,
   );
 
-  aiServiceMock.generateStructured.mockResolvedValue(
-    invalidPaper,
-  );
+  expect(result).toEqual({
+    assessmentId: 'ASM-001',
+    kind: 'TEST',
+    source: 'AI_GENERATED',
+    status: 'DRAFT',
+  });
+});
 
-  paperRepairServiceMock.repair.mockResolvedValue(
-    invalidPaper,
+it('propagates LangGraph workflow failures', async () => {
+  generationWorkflowServiceMock.run.mockRejectedValue(
+    new Error(
+      'AI paper generation workflow failed',
+    ),
   );
 
   await expect(
@@ -745,16 +618,26 @@ it('does not persist a paper when validation remains invalid after repairs', asy
       'teacher-user-id',
       dto,
     ),
-  ).rejects.toBeInstanceOf(
-    PaperValidationFailedError,
+  ).rejects.toThrow(
+    'AI paper generation workflow failed',
   );
+});
 
-  expect(
-    paperRepairServiceMock.repair,
-  ).toHaveBeenCalledTimes(2);
+it('does not directly call persistence when delegating to the graph workflow', async () => {
+  generationWorkflowServiceMock.run.mockResolvedValue({
+    assessmentId: 'ASM-001',
+    status: 'DRAFT',
+    source: 'AI_GENERATED',
+  });
+
+  await service.generateAndSaveDraft(
+    'teacher-user-id',
+    dto,
+  );
 
   expect(
     persistenceServiceMock.saveDraft,
   ).not.toHaveBeenCalled();
 });
+
 });

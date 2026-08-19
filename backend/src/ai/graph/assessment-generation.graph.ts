@@ -50,6 +50,40 @@ const validationErrorCodeSchema =
     'DURATION_MISMATCH',
   ]);
 
+const persistedAssessmentSchema =
+  z.object({
+    assessmentId:
+      z.string(),
+
+    kind:
+      z.enum([
+        'PRACTICE',
+        'TEST',
+      ]),
+
+    source:
+      z.string(),
+
+    status:
+      z.string(),
+
+    title:
+      z
+        .string()
+        .optional(),
+
+    maximumMarks:
+      z
+        .number()
+        .optional(),
+
+    durationMinutes:
+  z
+    .number()
+    .nullable()
+    .optional(),
+  });
+
 const GraphState =
   new StateSchema({
     teacherUserId:
@@ -119,18 +153,22 @@ const GraphState =
         .default(0),
 
     status:
-     z
-    .enum([
-      'PENDING',
-      'GENERATING',
-      'VALIDATING',
-      'REPAIRING',
-      'READY',
-      'PERSISTING',
-      'COMPLETED',
-      'FAILED',
-    ])
-    .default('PENDING'),
+      z
+        .enum([
+          'PENDING',
+          'GENERATING',
+          'VALIDATING',
+          'REPAIRING',
+          'READY',
+          'PERSISTING',
+          'COMPLETED',
+          'FAILED',
+        ])
+        .default('PENDING'),
+
+    persistedAssessment:
+      persistedAssessmentSchema
+        .optional(),
   });
 
 export function buildAssessmentGenerationGraph(
@@ -279,7 +317,6 @@ export function buildAssessmentGenerationGraph(
     };
   };
 
-
   const persistNode:
   typeof GraphState.Node =
   async (state) => {
@@ -289,16 +326,43 @@ export function buildAssessmentGenerationGraph(
       };
     }
 
-    await persistenceService.saveDraft(
-      state.teacherUserId,
-      state.request,
-      state.generatedPaper,
-    );
+    const persistedAssessment =
+      await persistenceService.saveDraft(
+        state.teacherUserId,
+        state.request,
+        state.generatedPaper,
+      );
 
     return {
+      persistedAssessment: {
+        assessmentId:
+          persistedAssessment.assessmentId,
+
+        kind:
+          persistedAssessment.kind,
+
+        source:
+          persistedAssessment.source,
+
+        status:
+          persistedAssessment.status,
+
+        title:
+          persistedAssessment.title,
+
+        maximumMarks:
+          persistedAssessment.maximumMarks,
+
+        durationMinutes:
+          persistedAssessment.durationMinutes,
+      },
+
       status: 'COMPLETED',
     };
   };
+
+
+ 
   // --------------------------------
   // ROUTER
   // --------------------------------

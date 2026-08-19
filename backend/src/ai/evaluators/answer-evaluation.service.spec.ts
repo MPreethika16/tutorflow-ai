@@ -83,6 +83,35 @@ describe('AnswerEvaluationService', () => {
     expect(result).toEqual(typedResult);
   });
 
+  it('TYPED routes retry context to TypedEvaluatorService', async () => {
+    const typedResult = { suggestedMarks: 5, feedback: 'Okay', reasoning: 'Yes', confidence: 0.8 };
+    jest.spyOn(typedService, 'evaluate').mockResolvedValue(typedResult);
+
+    const context = { validationErrors: [{ code: 'EMPTY_FEEDBACK', message: 'err' }] };
+    await service.evaluate({ ...baseQuestion, type: QuestionType.TYPED }, baseAnswer, context);
+    
+    expect(typedService.evaluate).toHaveBeenCalledWith(
+      expect.objectContaining({ type: QuestionType.TYPED }),
+      baseAnswer,
+      context,
+    );
+  });
+
+  it('MCQ routes but ignores retry context', async () => {
+    const mcqResult = { suggestedMarks: 10, feedback: 'Great', reasoning: 'Yes', confidence: 1 };
+    jest.spyOn(mcqService, 'evaluate').mockReturnValue(mcqResult as any);
+
+    const context = { validationErrors: [{ code: 'EMPTY_FEEDBACK', message: 'err' }] };
+    await service.evaluate(baseQuestion, baseAnswer, context);
+    
+    expect(mcqService.evaluate).toHaveBeenCalledWith(
+      baseQuestion,
+      baseAnswer,
+    );
+    const callArgs = (mcqService.evaluate as jest.Mock).mock.calls[0];
+    expect(callArgs.length).toBe(2);
+  });
+
   it('VOICE is rejected cleanly', async () => {
     await expect(
       service.evaluate({ ...baseQuestion, type: QuestionType.VOICE }, baseAnswer),

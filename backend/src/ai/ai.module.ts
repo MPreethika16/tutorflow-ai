@@ -29,6 +29,8 @@ import { McqEvaluatorService } from './evaluators/mcq-evaluator.service';
 import { TypedEvaluatorService } from './evaluators/typed-evaluator.service';
 import { AnswerEvaluationService } from './evaluators/answer-evaluation.service';
 import { AnswerEvaluationPersistenceService } from './evaluators/answer-evaluation-persistence.service';
+import { EvaluationLoopService } from './evaluators/answer-evaluation-loop.service';
+import { AnswerEvaluationWorkerService } from './evaluators/answer-evaluation-worker.service';
 
 
 @Module({
@@ -56,6 +58,8 @@ import { AnswerEvaluationPersistenceService } from './evaluators/answer-evaluati
     TypedEvaluatorService,
     AnswerEvaluationService,
     AnswerEvaluationPersistenceService,
+    EvaluationLoopService,
+    AnswerEvaluationWorkerService,
     {
       provide: AI_PROVIDER,
       useExisting: OpenRouterProvider,
@@ -81,6 +85,7 @@ import { AnswerEvaluationPersistenceService } from './evaluators/answer-evaluati
     TypedEvaluatorService,
     AnswerEvaluationService,
     AnswerEvaluationPersistenceService,
+    EvaluationLoopService,
     EMBEDDING_PROVIDER,
   ],
 })

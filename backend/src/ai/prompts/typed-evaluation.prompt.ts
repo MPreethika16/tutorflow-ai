@@ -1,11 +1,14 @@
 import { AiMessage } from '../providers/ai-provider.interface';
 
+import { AnswerEvaluationValidationError } from '../validation/answer-evaluation-validation.types';
+
 export function buildTypedEvaluationMessages(params: {
   prompt: string;
   modelAnswer: string | null;
   gradingInstructions: string | null;
   marks: number;
   studentAnswer: string;
+  previousErrors?: AnswerEvaluationValidationError[];
 }): AiMessage[] {
   return [
     {
@@ -33,7 +36,13 @@ Grading Instructions:
 ${params.gradingInstructions ?? '(No specific grading instructions provided)'}
 
 Student Answer:
-${params.studentAnswer}`,
+${params.studentAnswer}${
+  params.previousErrors && params.previousErrors.length > 0
+    ? `\n\n[PREVIOUS EVALUATION FAILED VALIDATION]\nCorrect the following issues:\n${params.previousErrors
+        .map((e) => `- ${e.code}: ${e.message}`)
+        .join('\n')}`
+    : ''
+}`,
     },
   ];
 }

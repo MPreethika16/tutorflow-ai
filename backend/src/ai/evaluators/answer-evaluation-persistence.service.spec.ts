@@ -1,12 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AnswerEvaluationPersistenceService } from './answer-evaluation-persistence.service';
 import { AnswerEvaluationService, AnswerEvaluationValidationException } from './answer-evaluation.service';
+import { EvaluationLoopService } from './answer-evaluation-loop.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Question, StudentAnswer, QuestionType, EvaluationStatus, AnswerEvaluation } from '../../generated/prisma/client';
 
 describe('AnswerEvaluationPersistenceService', () => {
   let service: AnswerEvaluationPersistenceService;
-  let orchestrator: AnswerEvaluationService;
+  let orchestrator: EvaluationLoopService;
   let prisma: PrismaService;
 
   beforeEach(async () => {
@@ -14,7 +15,7 @@ describe('AnswerEvaluationPersistenceService', () => {
       providers: [
         AnswerEvaluationPersistenceService,
         {
-          provide: AnswerEvaluationService,
+          provide: EvaluationLoopService,
           useValue: {
             evaluate: jest.fn(),
           },
@@ -31,7 +32,7 @@ describe('AnswerEvaluationPersistenceService', () => {
     }).compile();
 
     service = module.get<AnswerEvaluationPersistenceService>(AnswerEvaluationPersistenceService);
-    orchestrator = module.get<AnswerEvaluationService>(AnswerEvaluationService);
+    orchestrator = module.get<EvaluationLoopService>(EvaluationLoopService);
     prisma = module.get<PrismaService>(PrismaService);
   });
 

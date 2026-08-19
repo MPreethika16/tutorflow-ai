@@ -1,17 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { AnswerEvaluationService } from './answer-evaluation.service';
+import { EvaluationLoopService } from './answer-evaluation-loop.service';
 import { Question, StudentAnswer, EvaluationStatus, AnswerEvaluation } from '../../generated/prisma/client';
 
 @Injectable()
 export class AnswerEvaluationPersistenceService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly evaluationOrchestrator: AnswerEvaluationService,
+    private readonly evaluationLoopService: EvaluationLoopService,
   ) {}
 
   async evaluateAndPersist(question: Question, studentAnswer: StudentAnswer): Promise<AnswerEvaluation> {
-    const evaluationResult = await this.evaluationOrchestrator.evaluate(question, studentAnswer);
+    const evaluationResult = await this.evaluationLoopService.evaluate(question, studentAnswer);
 
     return this.prisma.answerEvaluation.upsert({
       where: {

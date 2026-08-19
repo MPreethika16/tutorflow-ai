@@ -41,8 +41,10 @@ enum AssessmentAttemptStatus {
 
 enum EvaluationStatus {
   PENDING
+  EVALUATING
   WAITING_FOR_REVIEW
   APPROVED
+  FAILED
 }
 
 enum AssessmentKind {

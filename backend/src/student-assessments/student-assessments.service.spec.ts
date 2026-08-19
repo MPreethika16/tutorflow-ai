@@ -38,6 +38,10 @@ describe('StudentAssessmentsService', () => {
     studentAnswer: {
       upsert: jest.fn(),
       count: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    answerEvaluation: {
+      createMany: jest.fn(),
     },
     $transaction: jest.fn(),
   };
@@ -55,6 +59,10 @@ describe('StudentAssessmentsService', () => {
     studentAnswer: {
       upsert: jest.fn(),
       count: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    answerEvaluation: {
+      createMany: jest.fn(),
     },
   };
 

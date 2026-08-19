@@ -1,9 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AnswerEvaluationPersistenceService } from './answer-evaluation-persistence.service';
 import { AnswerEvaluationService, AnswerEvaluationValidationException } from './answer-evaluation.service';
-import { McqEvaluatorService } from './mcq-evaluator.service';
-import { TypedEvaluatorService } from './typed-evaluator.service';
-import { AnswerEvaluationService, AnswerEvaluationValidationException } from './answer-evaluation.service';
+import { EvaluationLoopService } from './answer-evaluation-loop.service';
 import { McqEvaluatorService } from './mcq-evaluator.service';
 import { TypedEvaluatorService } from './typed-evaluator.service';
 import { AiService } from '../ai.service';
@@ -20,6 +18,7 @@ describe('Answer Evaluation Integration', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AnswerEvaluationPersistenceService,
+        EvaluationLoopService,
         AnswerEvaluationService,
         McqEvaluatorService,
         TypedEvaluatorService,

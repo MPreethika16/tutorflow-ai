@@ -12,6 +12,7 @@ export class AiProviderError extends Error {
     public readonly code: AiProviderErrorCode,
     message: string,
     public readonly statusCode?: number,
+    public readonly cause?: unknown,
   ) {
     super(message);
     this.name = 'AiProviderError';

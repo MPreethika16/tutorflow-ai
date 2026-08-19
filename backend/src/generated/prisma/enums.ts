@@ -55,8 +55,10 @@ export type AssessmentAttemptStatus = (typeof AssessmentAttemptStatus)[keyof typ
 
 export const EvaluationStatus = {
   PENDING: 'PENDING',
+  EVALUATING: 'EVALUATING',
   WAITING_FOR_REVIEW: 'WAITING_FOR_REVIEW',
-  APPROVED: 'APPROVED'
+  APPROVED: 'APPROVED',
+  FAILED: 'FAILED'
 } as const
 
 export type EvaluationStatus = (typeof EvaluationStatus)[keyof typeof EvaluationStatus]

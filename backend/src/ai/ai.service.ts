@@ -1,8 +1,6 @@
 import {
   Inject,
   Injectable,
-  InternalServerErrorException,
-  ServiceUnavailableException,
 } from '@nestjs/common';
 import {
   toJSONSchema,
@@ -29,16 +27,19 @@ export class AiService {
   ) {}
 
   async generateText(
-  request: AiGenerateTextRequest,
-): Promise<AiGenerateTextResponse> {
-  try {
-    return await this.provider.generateText(
-      request,
-    );
-  } catch (error: unknown) {
-    throw this.mapProviderError(error);
+    request: AiGenerateTextRequest,
+  ): Promise<AiGenerateTextResponse> {
+    try {
+      return await this.provider.generateText(
+        request,
+      );
+    } catch (error: unknown) {
+      if (error instanceof AiProviderError) {
+        throw error;
+      }
+      throw new AiProviderError('UNKNOWN', 'AI service encountered an unknown error', undefined, error);
+    }
   }
-}
 
   async generateStructured<T>(
     request: AiGenerateTextRequest,
@@ -66,11 +67,13 @@ export class AiService {
     let parsed: unknown;
 
     try {
-      parsed =
-        JSON.parse(response.content);
-    } catch {
-      throw new InternalServerErrorException(
+      parsed = JSON.parse(response.content);
+    } catch (error) {
+      throw new AiProviderError(
+        'INVALID_RESPONSE',
         'AI provider returned invalid JSON',
+        undefined,
+        error
       );
     }
 
@@ -78,8 +81,11 @@ export class AiService {
       schema.safeParse(parsed);
 
     if (!result.success) {
-      throw new InternalServerErrorException(
+      throw new AiProviderError(
+        'INVALID_RESPONSE',
         'AI provider returned invalid structured output',
+        undefined,
+        result.error
       );
     }
 
@@ -88,24 +94,6 @@ export class AiService {
 
   
 
-  private mapProviderError(
-  error: unknown,
-): Error {
-  if (!(error instanceof AiProviderError)) {
-    return new ServiceUnavailableException(
-      'AI service is temporarily unavailable',
-    );
-  }
 
-  if (error.code === 'CONFIGURATION') {
-    return new InternalServerErrorException(
-      'AI service is not configured',
-    );
-  }
-
-  return new ServiceUnavailableException(
-    'AI service is temporarily unavailable',
-  );
-}
  
 }

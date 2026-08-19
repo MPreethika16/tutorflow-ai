@@ -90,20 +90,27 @@ describe('TypedEvaluatorService', () => {
     expect(messages[1].content).toContain(baseAnswer.textAnswer);
   });
 
-  it('suggestedMarks above maximum is rejected, not clamped', async () => {
-    jest.spyOn(aiService, 'generateStructured').mockResolvedValue({
-      suggestedMarks: 15,
-      feedback: 'Excellent.',
-      reasoning: 'Perfect.',
-      confidence: 1.0,
-    });
-
-    await expect(service.evaluate(baseQuestion, baseAnswer)).rejects.toThrow(InternalServerErrorException);
-  });
-
   it('AI/provider error propagates', async () => {
     jest.spyOn(aiService, 'generateStructured').mockRejectedValue(new Error('Provider fail'));
     await expect(service.evaluate(baseQuestion, baseAnswer)).rejects.toThrow('Provider fail');
+  });
+
+  it('passes retry context to prompt builder', async () => {
+    jest.spyOn(aiService, 'generateStructured').mockResolvedValue({
+      suggestedMarks: 8,
+      feedback: 'Good.',
+      reasoning: 'Mentioned light.',
+      confidence: 0.9,
+    });
+
+    await service.evaluate(baseQuestion, baseAnswer, {
+      validationErrors: [{ code: 'EMPTY_FEEDBACK', message: 'No feedback.' }],
+    });
+
+    const callArgs = (aiService.generateStructured as jest.Mock).mock.calls[0];
+    const messages = callArgs[0].messages;
+    expect(messages[1].content).toContain('[PREVIOUS EVALUATION FAILED VALIDATION]');
+    expect(messages[1].content).toContain('EMPTY_FEEDBACK');
   });
 
   describe('prompt builder', () => {

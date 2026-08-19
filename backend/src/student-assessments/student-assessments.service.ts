@@ -44,7 +44,7 @@ type McqOption = {
   text: string;
 };
 
-type AttemptDb = Pick<Prisma.TransactionClient, 'assessmentAttempt'>;
+type AttemptDb = Pick<Prisma.TransactionClient, 'assessmentAttempt' | 'studentAnswer' | 'answerEvaluation'>;
 
 @Injectable()
 export class StudentAssessmentsService {
@@ -683,6 +683,8 @@ export class StudentAssessmentsService {
         throw new ConflictException('Assessment attempt already submitted');
       }
 
+      await this.queueEvaluationsForAttempt(tx, attempt.id);
+
       const submittedAttempt = await tx.assessmentAttempt.findUniqueOrThrow({
         where: {
           id: attempt.id,
@@ -914,7 +916,28 @@ export class StudentAssessmentsService {
       },
     });
 
+    if (result.count > 0) {
+      await this.queueEvaluationsForAttempt(db, attempt.id);
+    }
+
     return result.count > 0;
+  }
+
+  private async queueEvaluationsForAttempt(db: AttemptDb, attemptId: string) {
+    const answers = await db.studentAnswer.findMany({
+      where: { attemptId },
+      select: { id: true },
+    });
+
+    if (answers.length > 0) {
+      await db.answerEvaluation.createMany({
+        data: answers.map((answer) => ({
+          studentAnswerId: answer.id,
+          status: 'PENDING',
+        })),
+        skipDuplicates: true,
+      });
+    }
   }
 
   private buildStartResponse(

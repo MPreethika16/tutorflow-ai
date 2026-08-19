@@ -3,12 +3,17 @@ import { Question, StudentAnswer, QuestionType } from '../../generated/prisma/cl
 import { AiService } from '../ai.service';
 import { answerEvaluationResultSchema, AnswerEvaluationResult } from './answer-evaluation-result';
 import { buildTypedEvaluationMessages } from '../prompts/typed-evaluation.prompt';
+import { AnswerEvaluationRetryContext } from './answer-evaluation-retry-context';
 
 @Injectable()
 export class TypedEvaluatorService {
   constructor(private readonly aiService: AiService) {}
 
-  async evaluate(question: Question, studentAnswer: StudentAnswer): Promise<AnswerEvaluationResult> {
+  async evaluate(
+    question: Question,
+    studentAnswer: StudentAnswer,
+    retryContext?: AnswerEvaluationRetryContext,
+  ): Promise<AnswerEvaluationResult> {
     if (question.type !== QuestionType.TYPED) {
       throw new BadRequestException('Question must be of type TYPED');
     }
@@ -28,6 +33,7 @@ export class TypedEvaluatorService {
       gradingInstructions: question.gradingInstructions,
       marks: question.marks,
       studentAnswer: studentAnswer.textAnswer,
+      previousErrors: retryContext?.validationErrors,
     });
 
     const result = await this.aiService.generateStructured<AnswerEvaluationResult>(
@@ -35,12 +41,6 @@ export class TypedEvaluatorService {
       answerEvaluationResultSchema,
       'answer_evaluation_result',
     );
-
-    if (result.suggestedMarks > question.marks) {
-      throw new InternalServerErrorException(
-        `Suggested marks (${result.suggestedMarks}) exceed maximum marks (${question.marks})`,
-      );
-    }
 
     return result;
   }

@@ -39,6 +39,12 @@ enum AssessmentAttemptStatus {
   SUBMITTED
 }
 
+enum EvaluationStatus {
+  PENDING
+  WAITING_FOR_REVIEW
+  APPROVED
+}
+
 enum AssessmentKind {
   PRACTICE
   TEST
@@ -192,6 +198,30 @@ model StudentAnswer {
   attempt  AssessmentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
   question Question          @relation(fields: [questionId], references: [id], onDelete: Restrict)
 
+  evaluation AnswerEvaluation?
+
   @@unique([attemptId, questionId])
   @@index([questionId])
+}
+
+model AnswerEvaluation {
+  id              String @id @default(uuid()) @db.Uuid
+  studentAnswerId String @unique @db.Uuid
+
+  aiMarks      Int?
+  aiFeedback   String?
+  aiReasoning  String?
+  aiConfidence Float?
+
+  teacherMarks    Int?
+  teacherFeedback String?
+
+  status EvaluationStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studentAnswer StudentAnswer @relation(fields: [studentAnswerId], references: [id], onDelete: Cascade)
+
+  @@index([status])
 }

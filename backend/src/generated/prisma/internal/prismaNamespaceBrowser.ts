@@ -57,7 +57,8 @@ export const ModelName = {
   Assessment: 'Assessment',
   Question: 'Question',
   AssessmentAttempt: 'AssessmentAttempt',
-  StudentAnswer: 'StudentAnswer'
+  StudentAnswer: 'StudentAnswer',
+  AnswerEvaluation: 'AnswerEvaluation'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -190,6 +191,23 @@ export const StudentAnswerScalarFieldEnum = {
 } as const
 
 export type StudentAnswerScalarFieldEnum = (typeof StudentAnswerScalarFieldEnum)[keyof typeof StudentAnswerScalarFieldEnum]
+
+
+export const AnswerEvaluationScalarFieldEnum = {
+  id: 'id',
+  studentAnswerId: 'studentAnswerId',
+  aiMarks: 'aiMarks',
+  aiFeedback: 'aiFeedback',
+  aiReasoning: 'aiReasoning',
+  aiConfidence: 'aiConfidence',
+  teacherMarks: 'teacherMarks',
+  teacherFeedback: 'teacherFeedback',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AnswerEvaluationScalarFieldEnum = (typeof AnswerEvaluationScalarFieldEnum)[keyof typeof AnswerEvaluationScalarFieldEnum]
 
 
 export const SortOrder = {

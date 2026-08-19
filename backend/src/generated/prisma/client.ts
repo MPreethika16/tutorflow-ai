@@ -74,3 +74,8 @@ export type AssessmentAttempt = Prisma.AssessmentAttemptModel
  * 
  */
 export type StudentAnswer = Prisma.StudentAnswerModel
+/**
+ * Model AnswerEvaluation
+ * 
+ */
+export type AnswerEvaluation = Prisma.AnswerEvaluationModel

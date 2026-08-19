@@ -208,6 +208,7 @@ export type StudentAnswerWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"StudentAnswer"> | Date | string
   attempt?: Prisma.XOR<Prisma.AssessmentAttemptScalarRelationFilter, Prisma.AssessmentAttemptWhereInput>
   question?: Prisma.XOR<Prisma.QuestionScalarRelationFilter, Prisma.QuestionWhereInput>
+  evaluation?: Prisma.XOR<Prisma.AnswerEvaluationNullableScalarRelationFilter, Prisma.AnswerEvaluationWhereInput> | null
 }
 
 export type StudentAnswerOrderByWithRelationInput = {
@@ -221,6 +222,7 @@ export type StudentAnswerOrderByWithRelationInput = {
   updatedAt?: Prisma.SortOrder
   attempt?: Prisma.AssessmentAttemptOrderByWithRelationInput
   question?: Prisma.QuestionOrderByWithRelationInput
+  evaluation?: Prisma.AnswerEvaluationOrderByWithRelationInput
 }
 
 export type StudentAnswerWhereUniqueInput = Prisma.AtLeast<{
@@ -238,6 +240,7 @@ export type StudentAnswerWhereUniqueInput = Prisma.AtLeast<{
   updatedAt?: Prisma.DateTimeFilter<"StudentAnswer"> | Date | string
   attempt?: Prisma.XOR<Prisma.AssessmentAttemptScalarRelationFilter, Prisma.AssessmentAttemptWhereInput>
   question?: Prisma.XOR<Prisma.QuestionScalarRelationFilter, Prisma.QuestionWhereInput>
+  evaluation?: Prisma.XOR<Prisma.AnswerEvaluationNullableScalarRelationFilter, Prisma.AnswerEvaluationWhereInput> | null
 }, "id" | "attemptId_questionId">
 
 export type StudentAnswerOrderByWithAggregationInput = {
@@ -277,6 +280,7 @@ export type StudentAnswerCreateInput = {
   updatedAt?: Date | string
   attempt: Prisma.AssessmentAttemptCreateNestedOneWithoutAnswersInput
   question: Prisma.QuestionCreateNestedOneWithoutStudentAnswersInput
+  evaluation?: Prisma.AnswerEvaluationCreateNestedOneWithoutStudentAnswerInput
 }
 
 export type StudentAnswerUncheckedCreateInput = {
@@ -288,6 +292,7 @@ export type StudentAnswerUncheckedCreateInput = {
   voiceUrl?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  evaluation?: Prisma.AnswerEvaluationUncheckedCreateNestedOneWithoutStudentAnswerInput
 }
 
 export type StudentAnswerUpdateInput = {
@@ -299,6 +304,7 @@ export type StudentAnswerUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   attempt?: Prisma.AssessmentAttemptUpdateOneRequiredWithoutAnswersNestedInput
   question?: Prisma.QuestionUpdateOneRequiredWithoutStudentAnswersNestedInput
+  evaluation?: Prisma.AnswerEvaluationUpdateOneWithoutStudentAnswerNestedInput
 }
 
 export type StudentAnswerUncheckedUpdateInput = {
@@ -310,6 +316,7 @@ export type StudentAnswerUncheckedUpdateInput = {
   voiceUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  evaluation?: Prisma.AnswerEvaluationUncheckedUpdateOneWithoutStudentAnswerNestedInput
 }
 
 export type StudentAnswerCreateManyInput = {
@@ -389,6 +396,11 @@ export type StudentAnswerMinOrderByAggregateInput = {
   voiceUrl?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type StudentAnswerScalarRelationFilter = {
+  is?: Prisma.StudentAnswerWhereInput
+  isNot?: Prisma.StudentAnswerWhereInput
 }
 
 export type StudentAnswerCreateNestedManyWithoutQuestionInput = {
@@ -475,6 +487,20 @@ export type StudentAnswerUncheckedUpdateManyWithoutAttemptNestedInput = {
   deleteMany?: Prisma.StudentAnswerScalarWhereInput | Prisma.StudentAnswerScalarWhereInput[]
 }
 
+export type StudentAnswerCreateNestedOneWithoutEvaluationInput = {
+  create?: Prisma.XOR<Prisma.StudentAnswerCreateWithoutEvaluationInput, Prisma.StudentAnswerUncheckedCreateWithoutEvaluationInput>
+  connectOrCreate?: Prisma.StudentAnswerCreateOrConnectWithoutEvaluationInput
+  connect?: Prisma.StudentAnswerWhereUniqueInput
+}
+
+export type StudentAnswerUpdateOneRequiredWithoutEvaluationNestedInput = {
+  create?: Prisma.XOR<Prisma.StudentAnswerCreateWithoutEvaluationInput, Prisma.StudentAnswerUncheckedCreateWithoutEvaluationInput>
+  connectOrCreate?: Prisma.StudentAnswerCreateOrConnectWithoutEvaluationInput
+  upsert?: Prisma.StudentAnswerUpsertWithoutEvaluationInput
+  connect?: Prisma.StudentAnswerWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.StudentAnswerUpdateToOneWithWhereWithoutEvaluationInput, Prisma.StudentAnswerUpdateWithoutEvaluationInput>, Prisma.StudentAnswerUncheckedUpdateWithoutEvaluationInput>
+}
+
 export type StudentAnswerCreateWithoutQuestionInput = {
   id?: string
   selectedOption?: string | null
@@ -483,6 +509,7 @@ export type StudentAnswerCreateWithoutQuestionInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   attempt: Prisma.AssessmentAttemptCreateNestedOneWithoutAnswersInput
+  evaluation?: Prisma.AnswerEvaluationCreateNestedOneWithoutStudentAnswerInput
 }
 
 export type StudentAnswerUncheckedCreateWithoutQuestionInput = {
@@ -493,6 +520,7 @@ export type StudentAnswerUncheckedCreateWithoutQuestionInput = {
   voiceUrl?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  evaluation?: Prisma.AnswerEvaluationUncheckedCreateNestedOneWithoutStudentAnswerInput
 }
 
 export type StudentAnswerCreateOrConnectWithoutQuestionInput = {
@@ -543,6 +571,7 @@ export type StudentAnswerCreateWithoutAttemptInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   question: Prisma.QuestionCreateNestedOneWithoutStudentAnswersInput
+  evaluation?: Prisma.AnswerEvaluationCreateNestedOneWithoutStudentAnswerInput
 }
 
 export type StudentAnswerUncheckedCreateWithoutAttemptInput = {
@@ -553,6 +582,7 @@ export type StudentAnswerUncheckedCreateWithoutAttemptInput = {
   voiceUrl?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  evaluation?: Prisma.AnswerEvaluationUncheckedCreateNestedOneWithoutStudentAnswerInput
 }
 
 export type StudentAnswerCreateOrConnectWithoutAttemptInput = {
@@ -581,6 +611,66 @@ export type StudentAnswerUpdateManyWithWhereWithoutAttemptInput = {
   data: Prisma.XOR<Prisma.StudentAnswerUpdateManyMutationInput, Prisma.StudentAnswerUncheckedUpdateManyWithoutAttemptInput>
 }
 
+export type StudentAnswerCreateWithoutEvaluationInput = {
+  id?: string
+  selectedOption?: string | null
+  textAnswer?: string | null
+  voiceUrl?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  attempt: Prisma.AssessmentAttemptCreateNestedOneWithoutAnswersInput
+  question: Prisma.QuestionCreateNestedOneWithoutStudentAnswersInput
+}
+
+export type StudentAnswerUncheckedCreateWithoutEvaluationInput = {
+  id?: string
+  attemptId: string
+  questionId: string
+  selectedOption?: string | null
+  textAnswer?: string | null
+  voiceUrl?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type StudentAnswerCreateOrConnectWithoutEvaluationInput = {
+  where: Prisma.StudentAnswerWhereUniqueInput
+  create: Prisma.XOR<Prisma.StudentAnswerCreateWithoutEvaluationInput, Prisma.StudentAnswerUncheckedCreateWithoutEvaluationInput>
+}
+
+export type StudentAnswerUpsertWithoutEvaluationInput = {
+  update: Prisma.XOR<Prisma.StudentAnswerUpdateWithoutEvaluationInput, Prisma.StudentAnswerUncheckedUpdateWithoutEvaluationInput>
+  create: Prisma.XOR<Prisma.StudentAnswerCreateWithoutEvaluationInput, Prisma.StudentAnswerUncheckedCreateWithoutEvaluationInput>
+  where?: Prisma.StudentAnswerWhereInput
+}
+
+export type StudentAnswerUpdateToOneWithWhereWithoutEvaluationInput = {
+  where?: Prisma.StudentAnswerWhereInput
+  data: Prisma.XOR<Prisma.StudentAnswerUpdateWithoutEvaluationInput, Prisma.StudentAnswerUncheckedUpdateWithoutEvaluationInput>
+}
+
+export type StudentAnswerUpdateWithoutEvaluationInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  selectedOption?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  textAnswer?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  voiceUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  attempt?: Prisma.AssessmentAttemptUpdateOneRequiredWithoutAnswersNestedInput
+  question?: Prisma.QuestionUpdateOneRequiredWithoutStudentAnswersNestedInput
+}
+
+export type StudentAnswerUncheckedUpdateWithoutEvaluationInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  attemptId?: Prisma.StringFieldUpdateOperationsInput | string
+  questionId?: Prisma.StringFieldUpdateOperationsInput | string
+  selectedOption?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  textAnswer?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  voiceUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
 export type StudentAnswerCreateManyQuestionInput = {
   id?: string
   attemptId: string
@@ -599,6 +689,7 @@ export type StudentAnswerUpdateWithoutQuestionInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   attempt?: Prisma.AssessmentAttemptUpdateOneRequiredWithoutAnswersNestedInput
+  evaluation?: Prisma.AnswerEvaluationUpdateOneWithoutStudentAnswerNestedInput
 }
 
 export type StudentAnswerUncheckedUpdateWithoutQuestionInput = {
@@ -609,6 +700,7 @@ export type StudentAnswerUncheckedUpdateWithoutQuestionInput = {
   voiceUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  evaluation?: Prisma.AnswerEvaluationUncheckedUpdateOneWithoutStudentAnswerNestedInput
 }
 
 export type StudentAnswerUncheckedUpdateManyWithoutQuestionInput = {
@@ -639,6 +731,7 @@ export type StudentAnswerUpdateWithoutAttemptInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   question?: Prisma.QuestionUpdateOneRequiredWithoutStudentAnswersNestedInput
+  evaluation?: Prisma.AnswerEvaluationUpdateOneWithoutStudentAnswerNestedInput
 }
 
 export type StudentAnswerUncheckedUpdateWithoutAttemptInput = {
@@ -649,6 +742,7 @@ export type StudentAnswerUncheckedUpdateWithoutAttemptInput = {
   voiceUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  evaluation?: Prisma.AnswerEvaluationUncheckedUpdateOneWithoutStudentAnswerNestedInput
 }
 
 export type StudentAnswerUncheckedUpdateManyWithoutAttemptInput = {
@@ -674,6 +768,7 @@ export type StudentAnswerSelect<ExtArgs extends runtime.Types.Extensions.Interna
   updatedAt?: boolean
   attempt?: boolean | Prisma.AssessmentAttemptDefaultArgs<ExtArgs>
   question?: boolean | Prisma.QuestionDefaultArgs<ExtArgs>
+  evaluation?: boolean | Prisma.StudentAnswer$evaluationArgs<ExtArgs>
 }, ExtArgs["result"]["studentAnswer"]>
 
 export type StudentAnswerSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -717,6 +812,7 @@ export type StudentAnswerOmit<ExtArgs extends runtime.Types.Extensions.InternalA
 export type StudentAnswerInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   attempt?: boolean | Prisma.AssessmentAttemptDefaultArgs<ExtArgs>
   question?: boolean | Prisma.QuestionDefaultArgs<ExtArgs>
+  evaluation?: boolean | Prisma.StudentAnswer$evaluationArgs<ExtArgs>
 }
 export type StudentAnswerIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   attempt?: boolean | Prisma.AssessmentAttemptDefaultArgs<ExtArgs>
@@ -732,6 +828,7 @@ export type $StudentAnswerPayload<ExtArgs extends runtime.Types.Extensions.Inter
   objects: {
     attempt: Prisma.$AssessmentAttemptPayload<ExtArgs>
     question: Prisma.$QuestionPayload<ExtArgs>
+    evaluation: Prisma.$AnswerEvaluationPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1138,6 +1235,7 @@ export interface Prisma__StudentAnswerClient<T, Null = never, ExtArgs extends ru
   readonly [Symbol.toStringTag]: "PrismaPromise"
   attempt<T extends Prisma.AssessmentAttemptDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AssessmentAttemptDefaultArgs<ExtArgs>>): Prisma.Prisma__AssessmentAttemptClient<runtime.Types.Result.GetResult<Prisma.$AssessmentAttemptPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   question<T extends Prisma.QuestionDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.QuestionDefaultArgs<ExtArgs>>): Prisma.Prisma__QuestionClient<runtime.Types.Result.GetResult<Prisma.$QuestionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  evaluation<T extends Prisma.StudentAnswer$evaluationArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.StudentAnswer$evaluationArgs<ExtArgs>>): Prisma.Prisma__AnswerEvaluationClient<runtime.Types.Result.GetResult<Prisma.$AnswerEvaluationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1573,6 +1671,25 @@ export type StudentAnswerDeleteManyArgs<ExtArgs extends runtime.Types.Extensions
    * Limit how many StudentAnswers to delete.
    */
   limit?: number
+}
+
+/**
+ * StudentAnswer.evaluation
+ */
+export type StudentAnswer$evaluationArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AnswerEvaluation
+   */
+  select?: Prisma.AnswerEvaluationSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AnswerEvaluation
+   */
+  omit?: Prisma.AnswerEvaluationOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AnswerEvaluationInclude<ExtArgs> | null
+  where?: Prisma.AnswerEvaluationWhereInput
 }
 
 /**

@@ -53,6 +53,15 @@ export const AssessmentAttemptStatus = {
 export type AssessmentAttemptStatus = (typeof AssessmentAttemptStatus)[keyof typeof AssessmentAttemptStatus]
 
 
+export const EvaluationStatus = {
+  PENDING: 'PENDING',
+  WAITING_FOR_REVIEW: 'WAITING_FOR_REVIEW',
+  APPROVED: 'APPROVED'
+} as const
+
+export type EvaluationStatus = (typeof EvaluationStatus)[keyof typeof EvaluationStatus]
+
+
 export const AssessmentKind = {
   PRACTICE: 'PRACTICE',
   TEST: 'TEST'

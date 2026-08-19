@@ -25,6 +25,11 @@ import {
   GenerationWorkflowService,
 } from './graph/generation-workflow.service';
 
+import { McqEvaluatorService } from './evaluators/mcq-evaluator.service';
+import { TypedEvaluatorService } from './evaluators/typed-evaluator.service';
+import { AnswerEvaluationService } from './evaluators/answer-evaluation.service';
+import { AnswerEvaluationPersistenceService } from './evaluators/answer-evaluation-persistence.service';
+
 
 @Module({
   imports: [
@@ -47,6 +52,10 @@ import {
     TeacherStyleRetriever,
     PaperRepairService,
     GenerationWorkflowService,
+    McqEvaluatorService,
+    TypedEvaluatorService,
+    AnswerEvaluationService,
+    AnswerEvaluationPersistenceService,
     {
       provide: AI_PROVIDER,
       useExisting: OpenRouterProvider,
@@ -68,6 +77,10 @@ import {
     GeneratedPaperPersistenceService,
     TeacherStyleRetriever,
     GenerationWorkflowService,
+    McqEvaluatorService,
+    TypedEvaluatorService,
+    AnswerEvaluationService,
+    AnswerEvaluationPersistenceService,
     EMBEDDING_PROVIDER,
   ],
 })

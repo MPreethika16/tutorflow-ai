@@ -1150,6 +1150,9 @@ export const AssessmentAttemptScalarFieldEnum = {
   startedAt: 'startedAt',
   expiresAt: 'expiresAt',
   submittedAt: 'submittedAt',
+  publishedAt: 'publishedAt',
+  finalMarks: 'finalMarks',
+  maximumMarks: 'maximumMarks',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

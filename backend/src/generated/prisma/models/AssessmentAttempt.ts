@@ -20,8 +20,20 @@ export type AssessmentAttemptModel = runtime.Types.Result.DefaultSelection<Prism
 
 export type AggregateAssessmentAttempt = {
   _count: AssessmentAttemptCountAggregateOutputType | null
+  _avg: AssessmentAttemptAvgAggregateOutputType | null
+  _sum: AssessmentAttemptSumAggregateOutputType | null
   _min: AssessmentAttemptMinAggregateOutputType | null
   _max: AssessmentAttemptMaxAggregateOutputType | null
+}
+
+export type AssessmentAttemptAvgAggregateOutputType = {
+  finalMarks: number | null
+  maximumMarks: number | null
+}
+
+export type AssessmentAttemptSumAggregateOutputType = {
+  finalMarks: number | null
+  maximumMarks: number | null
 }
 
 export type AssessmentAttemptMinAggregateOutputType = {
@@ -33,6 +45,9 @@ export type AssessmentAttemptMinAggregateOutputType = {
   startedAt: Date | null
   expiresAt: Date | null
   submittedAt: Date | null
+  publishedAt: Date | null
+  finalMarks: number | null
+  maximumMarks: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -46,6 +61,9 @@ export type AssessmentAttemptMaxAggregateOutputType = {
   startedAt: Date | null
   expiresAt: Date | null
   submittedAt: Date | null
+  publishedAt: Date | null
+  finalMarks: number | null
+  maximumMarks: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -59,11 +77,24 @@ export type AssessmentAttemptCountAggregateOutputType = {
   startedAt: number
   expiresAt: number
   submittedAt: number
+  publishedAt: number
+  finalMarks: number
+  maximumMarks: number
   createdAt: number
   updatedAt: number
   _all: number
 }
 
+
+export type AssessmentAttemptAvgAggregateInputType = {
+  finalMarks?: true
+  maximumMarks?: true
+}
+
+export type AssessmentAttemptSumAggregateInputType = {
+  finalMarks?: true
+  maximumMarks?: true
+}
 
 export type AssessmentAttemptMinAggregateInputType = {
   id?: true
@@ -74,6 +105,9 @@ export type AssessmentAttemptMinAggregateInputType = {
   startedAt?: true
   expiresAt?: true
   submittedAt?: true
+  publishedAt?: true
+  finalMarks?: true
+  maximumMarks?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -87,6 +121,9 @@ export type AssessmentAttemptMaxAggregateInputType = {
   startedAt?: true
   expiresAt?: true
   submittedAt?: true
+  publishedAt?: true
+  finalMarks?: true
+  maximumMarks?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -100,6 +137,9 @@ export type AssessmentAttemptCountAggregateInputType = {
   startedAt?: true
   expiresAt?: true
   submittedAt?: true
+  publishedAt?: true
+  finalMarks?: true
+  maximumMarks?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -143,6 +183,18 @@ export type AssessmentAttemptAggregateArgs<ExtArgs extends runtime.Types.Extensi
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: AssessmentAttemptAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: AssessmentAttemptSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: AssessmentAttemptMinAggregateInputType
@@ -173,6 +225,8 @@ export type AssessmentAttemptGroupByArgs<ExtArgs extends runtime.Types.Extension
   take?: number
   skip?: number
   _count?: AssessmentAttemptCountAggregateInputType | true
+  _avg?: AssessmentAttemptAvgAggregateInputType
+  _sum?: AssessmentAttemptSumAggregateInputType
   _min?: AssessmentAttemptMinAggregateInputType
   _max?: AssessmentAttemptMaxAggregateInputType
 }
@@ -186,9 +240,14 @@ export type AssessmentAttemptGroupByOutputType = {
   startedAt: Date
   expiresAt: Date
   submittedAt: Date | null
+  publishedAt: Date | null
+  finalMarks: number | null
+  maximumMarks: number | null
   createdAt: Date
   updatedAt: Date
   _count: AssessmentAttemptCountAggregateOutputType | null
+  _avg: AssessmentAttemptAvgAggregateOutputType | null
+  _sum: AssessmentAttemptSumAggregateOutputType | null
   _min: AssessmentAttemptMinAggregateOutputType | null
   _max: AssessmentAttemptMaxAggregateOutputType | null
 }
@@ -220,6 +279,9 @@ export type AssessmentAttemptWhereInput = {
   startedAt?: Prisma.DateTimeFilter<"AssessmentAttempt"> | Date | string
   expiresAt?: Prisma.DateTimeFilter<"AssessmentAttempt"> | Date | string
   submittedAt?: Prisma.DateTimeNullableFilter<"AssessmentAttempt"> | Date | string | null
+  publishedAt?: Prisma.DateTimeNullableFilter<"AssessmentAttempt"> | Date | string | null
+  finalMarks?: Prisma.IntNullableFilter<"AssessmentAttempt"> | number | null
+  maximumMarks?: Prisma.IntNullableFilter<"AssessmentAttempt"> | number | null
   createdAt?: Prisma.DateTimeFilter<"AssessmentAttempt"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssessmentAttempt"> | Date | string
   student?: Prisma.XOR<Prisma.StudentScalarRelationFilter, Prisma.StudentWhereInput>
@@ -236,6 +298,9 @@ export type AssessmentAttemptOrderByWithRelationInput = {
   startedAt?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   submittedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  publishedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  finalMarks?: Prisma.SortOrderInput | Prisma.SortOrder
+  maximumMarks?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   student?: Prisma.StudentOrderByWithRelationInput
@@ -256,6 +321,9 @@ export type AssessmentAttemptWhereUniqueInput = Prisma.AtLeast<{
   startedAt?: Prisma.DateTimeFilter<"AssessmentAttempt"> | Date | string
   expiresAt?: Prisma.DateTimeFilter<"AssessmentAttempt"> | Date | string
   submittedAt?: Prisma.DateTimeNullableFilter<"AssessmentAttempt"> | Date | string | null
+  publishedAt?: Prisma.DateTimeNullableFilter<"AssessmentAttempt"> | Date | string | null
+  finalMarks?: Prisma.IntNullableFilter<"AssessmentAttempt"> | number | null
+  maximumMarks?: Prisma.IntNullableFilter<"AssessmentAttempt"> | number | null
   createdAt?: Prisma.DateTimeFilter<"AssessmentAttempt"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssessmentAttempt"> | Date | string
   student?: Prisma.XOR<Prisma.StudentScalarRelationFilter, Prisma.StudentWhereInput>
@@ -272,11 +340,16 @@ export type AssessmentAttemptOrderByWithAggregationInput = {
   startedAt?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   submittedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  publishedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  finalMarks?: Prisma.SortOrderInput | Prisma.SortOrder
+  maximumMarks?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.AssessmentAttemptCountOrderByAggregateInput
+  _avg?: Prisma.AssessmentAttemptAvgOrderByAggregateInput
   _max?: Prisma.AssessmentAttemptMaxOrderByAggregateInput
   _min?: Prisma.AssessmentAttemptMinOrderByAggregateInput
+  _sum?: Prisma.AssessmentAttemptSumOrderByAggregateInput
 }
 
 export type AssessmentAttemptScalarWhereWithAggregatesInput = {
@@ -291,6 +364,9 @@ export type AssessmentAttemptScalarWhereWithAggregatesInput = {
   startedAt?: Prisma.DateTimeWithAggregatesFilter<"AssessmentAttempt"> | Date | string
   expiresAt?: Prisma.DateTimeWithAggregatesFilter<"AssessmentAttempt"> | Date | string
   submittedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"AssessmentAttempt"> | Date | string | null
+  publishedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"AssessmentAttempt"> | Date | string | null
+  finalMarks?: Prisma.IntNullableWithAggregatesFilter<"AssessmentAttempt"> | number | null
+  maximumMarks?: Prisma.IntNullableWithAggregatesFilter<"AssessmentAttempt"> | number | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"AssessmentAttempt"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"AssessmentAttempt"> | Date | string
 }
@@ -302,6 +378,9 @@ export type AssessmentAttemptCreateInput = {
   startedAt: Date | string
   expiresAt: Date | string
   submittedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  finalMarks?: number | null
+  maximumMarks?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.StudentCreateNestedOneWithoutAttemptsInput
@@ -318,6 +397,9 @@ export type AssessmentAttemptUncheckedCreateInput = {
   startedAt: Date | string
   expiresAt: Date | string
   submittedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  finalMarks?: number | null
+  maximumMarks?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.StudentAnswerUncheckedCreateNestedManyWithoutAttemptInput
@@ -330,6 +412,9 @@ export type AssessmentAttemptUpdateInput = {
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submittedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  finalMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  maximumMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.StudentUpdateOneRequiredWithoutAttemptsNestedInput
@@ -346,6 +431,9 @@ export type AssessmentAttemptUncheckedUpdateInput = {
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submittedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  finalMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  maximumMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.StudentAnswerUncheckedUpdateManyWithoutAttemptNestedInput
@@ -360,6 +448,9 @@ export type AssessmentAttemptCreateManyInput = {
   startedAt: Date | string
   expiresAt: Date | string
   submittedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  finalMarks?: number | null
+  maximumMarks?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -371,6 +462,9 @@ export type AssessmentAttemptUpdateManyMutationInput = {
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submittedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  finalMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  maximumMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -384,6 +478,9 @@ export type AssessmentAttemptUncheckedUpdateManyInput = {
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submittedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  finalMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  maximumMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -412,8 +509,16 @@ export type AssessmentAttemptCountOrderByAggregateInput = {
   startedAt?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   submittedAt?: Prisma.SortOrder
+  publishedAt?: Prisma.SortOrder
+  finalMarks?: Prisma.SortOrder
+  maximumMarks?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type AssessmentAttemptAvgOrderByAggregateInput = {
+  finalMarks?: Prisma.SortOrder
+  maximumMarks?: Prisma.SortOrder
 }
 
 export type AssessmentAttemptMaxOrderByAggregateInput = {
@@ -425,6 +530,9 @@ export type AssessmentAttemptMaxOrderByAggregateInput = {
   startedAt?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   submittedAt?: Prisma.SortOrder
+  publishedAt?: Prisma.SortOrder
+  finalMarks?: Prisma.SortOrder
+  maximumMarks?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -438,8 +546,16 @@ export type AssessmentAttemptMinOrderByAggregateInput = {
   startedAt?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   submittedAt?: Prisma.SortOrder
+  publishedAt?: Prisma.SortOrder
+  finalMarks?: Prisma.SortOrder
+  maximumMarks?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type AssessmentAttemptSumOrderByAggregateInput = {
+  finalMarks?: Prisma.SortOrder
+  maximumMarks?: Prisma.SortOrder
 }
 
 export type AssessmentAttemptScalarRelationFilter = {
@@ -556,6 +672,9 @@ export type AssessmentAttemptCreateWithoutStudentInput = {
   startedAt: Date | string
   expiresAt: Date | string
   submittedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  finalMarks?: number | null
+  maximumMarks?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   assessment: Prisma.AssessmentCreateNestedOneWithoutAttemptsInput
@@ -570,6 +689,9 @@ export type AssessmentAttemptUncheckedCreateWithoutStudentInput = {
   startedAt: Date | string
   expiresAt: Date | string
   submittedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  finalMarks?: number | null
+  maximumMarks?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.StudentAnswerUncheckedCreateNestedManyWithoutAttemptInput
@@ -613,6 +735,9 @@ export type AssessmentAttemptScalarWhereInput = {
   startedAt?: Prisma.DateTimeFilter<"AssessmentAttempt"> | Date | string
   expiresAt?: Prisma.DateTimeFilter<"AssessmentAttempt"> | Date | string
   submittedAt?: Prisma.DateTimeNullableFilter<"AssessmentAttempt"> | Date | string | null
+  publishedAt?: Prisma.DateTimeNullableFilter<"AssessmentAttempt"> | Date | string | null
+  finalMarks?: Prisma.IntNullableFilter<"AssessmentAttempt"> | number | null
+  maximumMarks?: Prisma.IntNullableFilter<"AssessmentAttempt"> | number | null
   createdAt?: Prisma.DateTimeFilter<"AssessmentAttempt"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssessmentAttempt"> | Date | string
 }
@@ -624,6 +749,9 @@ export type AssessmentAttemptCreateWithoutAssessmentInput = {
   startedAt: Date | string
   expiresAt: Date | string
   submittedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  finalMarks?: number | null
+  maximumMarks?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.StudentCreateNestedOneWithoutAttemptsInput
@@ -638,6 +766,9 @@ export type AssessmentAttemptUncheckedCreateWithoutAssessmentInput = {
   startedAt: Date | string
   expiresAt: Date | string
   submittedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  finalMarks?: number | null
+  maximumMarks?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.StudentAnswerUncheckedCreateNestedManyWithoutAttemptInput
@@ -676,6 +807,9 @@ export type AssessmentAttemptCreateWithoutAnswersInput = {
   startedAt: Date | string
   expiresAt: Date | string
   submittedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  finalMarks?: number | null
+  maximumMarks?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.StudentCreateNestedOneWithoutAttemptsInput
@@ -691,6 +825,9 @@ export type AssessmentAttemptUncheckedCreateWithoutAnswersInput = {
   startedAt: Date | string
   expiresAt: Date | string
   submittedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  finalMarks?: number | null
+  maximumMarks?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -718,6 +855,9 @@ export type AssessmentAttemptUpdateWithoutAnswersInput = {
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submittedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  finalMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  maximumMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.StudentUpdateOneRequiredWithoutAttemptsNestedInput
@@ -733,6 +873,9 @@ export type AssessmentAttemptUncheckedUpdateWithoutAnswersInput = {
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submittedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  finalMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  maximumMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -745,6 +888,9 @@ export type AssessmentAttemptCreateManyStudentInput = {
   startedAt: Date | string
   expiresAt: Date | string
   submittedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  finalMarks?: number | null
+  maximumMarks?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -756,6 +902,9 @@ export type AssessmentAttemptUpdateWithoutStudentInput = {
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submittedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  finalMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  maximumMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assessment?: Prisma.AssessmentUpdateOneRequiredWithoutAttemptsNestedInput
@@ -770,6 +919,9 @@ export type AssessmentAttemptUncheckedUpdateWithoutStudentInput = {
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submittedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  finalMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  maximumMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.StudentAnswerUncheckedUpdateManyWithoutAttemptNestedInput
@@ -783,6 +935,9 @@ export type AssessmentAttemptUncheckedUpdateManyWithoutStudentInput = {
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submittedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  finalMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  maximumMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -795,6 +950,9 @@ export type AssessmentAttemptCreateManyAssessmentInput = {
   startedAt: Date | string
   expiresAt: Date | string
   submittedAt?: Date | string | null
+  publishedAt?: Date | string | null
+  finalMarks?: number | null
+  maximumMarks?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -806,6 +964,9 @@ export type AssessmentAttemptUpdateWithoutAssessmentInput = {
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submittedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  finalMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  maximumMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.StudentUpdateOneRequiredWithoutAttemptsNestedInput
@@ -820,6 +981,9 @@ export type AssessmentAttemptUncheckedUpdateWithoutAssessmentInput = {
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submittedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  finalMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  maximumMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.StudentAnswerUncheckedUpdateManyWithoutAttemptNestedInput
@@ -833,6 +997,9 @@ export type AssessmentAttemptUncheckedUpdateManyWithoutAssessmentInput = {
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submittedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  finalMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  maximumMarks?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -877,6 +1044,9 @@ export type AssessmentAttemptSelect<ExtArgs extends runtime.Types.Extensions.Int
   startedAt?: boolean
   expiresAt?: boolean
   submittedAt?: boolean
+  publishedAt?: boolean
+  finalMarks?: boolean
+  maximumMarks?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   student?: boolean | Prisma.StudentDefaultArgs<ExtArgs>
@@ -894,6 +1064,9 @@ export type AssessmentAttemptSelectCreateManyAndReturn<ExtArgs extends runtime.T
   startedAt?: boolean
   expiresAt?: boolean
   submittedAt?: boolean
+  publishedAt?: boolean
+  finalMarks?: boolean
+  maximumMarks?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   student?: boolean | Prisma.StudentDefaultArgs<ExtArgs>
@@ -909,6 +1082,9 @@ export type AssessmentAttemptSelectUpdateManyAndReturn<ExtArgs extends runtime.T
   startedAt?: boolean
   expiresAt?: boolean
   submittedAt?: boolean
+  publishedAt?: boolean
+  finalMarks?: boolean
+  maximumMarks?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   student?: boolean | Prisma.StudentDefaultArgs<ExtArgs>
@@ -924,11 +1100,14 @@ export type AssessmentAttemptSelectScalar = {
   startedAt?: boolean
   expiresAt?: boolean
   submittedAt?: boolean
+  publishedAt?: boolean
+  finalMarks?: boolean
+  maximumMarks?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type AssessmentAttemptOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "attemptId" | "studentUserId" | "assessmentId" | "status" | "startedAt" | "expiresAt" | "submittedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["assessmentAttempt"]>
+export type AssessmentAttemptOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "attemptId" | "studentUserId" | "assessmentId" | "status" | "startedAt" | "expiresAt" | "submittedAt" | "publishedAt" | "finalMarks" | "maximumMarks" | "createdAt" | "updatedAt", ExtArgs["result"]["assessmentAttempt"]>
 export type AssessmentAttemptInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   student?: boolean | Prisma.StudentDefaultArgs<ExtArgs>
   assessment?: boolean | Prisma.AssessmentDefaultArgs<ExtArgs>
@@ -960,6 +1139,9 @@ export type $AssessmentAttemptPayload<ExtArgs extends runtime.Types.Extensions.I
     startedAt: Date
     expiresAt: Date
     submittedAt: Date | null
+    publishedAt: Date | null
+    finalMarks: number | null
+    maximumMarks: number | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["assessmentAttempt"]>
@@ -1396,6 +1578,9 @@ export interface AssessmentAttemptFieldRefs {
   readonly startedAt: Prisma.FieldRef<"AssessmentAttempt", 'DateTime'>
   readonly expiresAt: Prisma.FieldRef<"AssessmentAttempt", 'DateTime'>
   readonly submittedAt: Prisma.FieldRef<"AssessmentAttempt", 'DateTime'>
+  readonly publishedAt: Prisma.FieldRef<"AssessmentAttempt", 'DateTime'>
+  readonly finalMarks: Prisma.FieldRef<"AssessmentAttempt", 'Int'>
+  readonly maximumMarks: Prisma.FieldRef<"AssessmentAttempt", 'Int'>
   readonly createdAt: Prisma.FieldRef<"AssessmentAttempt", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"AssessmentAttempt", 'DateTime'>
 }

@@ -4,18 +4,41 @@ This document serves as the permanent baseline summary for TutorFlow V1 AI perfo
 
 ## 1. Generation Baseline
 
-**Current Metrics:**
-- **Cases:** 8
-- **Successful:** 5 (62.5% success rate)
-- **Failed:** 3 (37.5% failure rate)
-- **Schema Validity:** 100% (on successful generations)
-- **Total Marks Correctness:** 100%
-- **Typed-Field Completion:** 100%
+### Phase 11 (Pre-Retry) — Frozen Reference
+| Metric | Value |
+|---|---|
+| Cases | 8 |
+| Successful | 5 (62.5%) |
+| Failed | 3 (37.5%) |
+| Schema Validity | 100% (on successful) |
+| Total Marks Correctness | 100% |
+| Typed-Field Completion | 100% |
+| Average Latency | 23.3s |
+| Maximum Latency | 36.8s |
+
+Failure cause: All 3 failures were `INVALID_RESPONSE` provider errors before domain repair could run.
+
+### Phase 12.3 (With Provider Retry) — Current Baseline
+| Metric | Value |
+|---|---|
+| Cases | 8 |
+| Successful | **8 (100%)** |
+| Failed | **0 (0%)** |
+| Schema Validity | 100% |
+| Total Marks Correctness | 100% |
+| Typed-Field Completion | 100% |
+| Average Latency | **91.2s** ⚠️ |
+| Maximum Latency | **302.0s** ⚠️ |
+| Cases requiring provider retry | 2 / 8 (gen-2, gen-7 each hit 3 attempts) |
+| Total provider attempts | 12 (8 baseline + 4 retries) |
+| Domain repairs needed | 0 |
+
+**Regression policy:** All 4 hard gates `[PASS]`. Success rate gate also `[PASS]`.
 
 **Issue Classification:**
-- **Reliability (62.5% Success Rate):** **MUST FIX BEFORE V1**. 3 out of 8 generation requests fail entirely. We need robust repair limits or fallback mechanisms before exposing to teachers.
-- **Deterministic Correctness (100% bounds/schema):** **ACCEPTABLE**. The LangGraph repair mechanisms successfully enforce schema and deterministic rules when they yield a result.
-- **Latency/Quality:** **MONITOR**. Wait for more statistical data before tuning prompts.
+- **Reliability (100% Success Rate):** **RESOLVED** by Phase 12.2 provider retry. Previously `MUST FIX`.
+- **Latency increase:** **MONITOR**. Average latency tripled due to retried cases (2/8). The 6 non-retried cases remained in normal range. This is expected behavior from retry working correctly, not a regression in the happy path.
+- **Deterministic Correctness (100% bounds/schema):** **ACCEPTABLE**.
 
 ## 2. Retrieval Baseline
 

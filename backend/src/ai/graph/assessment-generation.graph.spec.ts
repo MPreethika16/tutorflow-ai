@@ -7,6 +7,8 @@ import {
   buildAssessmentGenerationGraph,
 } from './assessment-generation.graph';
 
+import { AiProviderError } from '../errors/ai-provider.error';
+
 describe('AssessmentGenerationGraph', () => {
   const aiServiceMock = {
     generateStructured: jest.fn(),
@@ -669,5 +671,157 @@ describe('AssessmentGenerationGraph', () => {
     expect(
       persistenceServiceMock.saveDraft,
     ).toHaveBeenCalledTimes(1);
+  });
+
+  // ----------------------------------------------------------------
+  // Provider retry tests (Phase 12.2)
+  // ----------------------------------------------------------------
+
+  describe('Provider-level retry in generateNode', () => {
+    it('retries on INVALID_RESPONSE and succeeds on attempt 2', async () => {
+      aiServiceMock.generateStructured
+        .mockRejectedValueOnce(
+          new AiProviderError('INVALID_RESPONSE', 'Bad structured output'),
+        )
+        .mockResolvedValueOnce(validPaper);
+
+      const graph = buildGraph();
+      const result = await graph.invoke({ teacherUserId: 'teacher-user-id', request });
+
+      expect(aiServiceMock.generateStructured).toHaveBeenCalledTimes(2);
+      expect(result.providerAttempts).toBe(2);
+      expect(result.status).toBe('COMPLETED');
+      expect(repairServiceMock.repair).not.toHaveBeenCalled();
+      expect(persistenceServiceMock.saveDraft).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries on TIMEOUT and succeeds on attempt 2', async () => {
+      aiServiceMock.generateStructured
+        .mockRejectedValueOnce(
+          new AiProviderError('TIMEOUT', 'Request timed out'),
+        )
+        .mockResolvedValueOnce(validPaper);
+
+      const graph = buildGraph();
+      const result = await graph.invoke({ teacherUserId: 'teacher-user-id', request });
+
+      expect(aiServiceMock.generateStructured).toHaveBeenCalledTimes(2);
+      expect(result.providerAttempts).toBe(2);
+      expect(result.status).toBe('COMPLETED');
+    });
+
+    it('retries on UNAVAILABLE and succeeds on attempt 2', async () => {
+      aiServiceMock.generateStructured
+        .mockRejectedValueOnce(
+          new AiProviderError('UNAVAILABLE', 'Provider down'),
+        )
+        .mockResolvedValueOnce(validPaper);
+
+      const graph = buildGraph();
+      const result = await graph.invoke({ teacherUserId: 'teacher-user-id', request });
+
+      expect(aiServiceMock.generateStructured).toHaveBeenCalledTimes(2);
+      expect(result.status).toBe('COMPLETED');
+    });
+
+    it('retries on RATE_LIMIT (with sleep) and succeeds on attempt 2', async () => {
+      jest.useFakeTimers();
+
+      aiServiceMock.generateStructured
+        .mockRejectedValueOnce(
+          new AiProviderError('RATE_LIMIT', 'Rate limited'),
+        )
+        .mockResolvedValueOnce(validPaper);
+
+      const graph = buildGraph();
+      const invokePromise = graph.invoke({ teacherUserId: 'teacher-user-id', request });
+
+      // Advance past the 2s rate-limit delay
+      await jest.runAllTimersAsync();
+
+      const result = await invokePromise;
+
+      expect(aiServiceMock.generateStructured).toHaveBeenCalledTimes(2);
+      expect(result.status).toBe('COMPLETED');
+
+      jest.useRealTimers();
+    });
+
+    it('fails after all 3 attempts exhausted on INVALID_RESPONSE', async () => {
+      const providerError = new AiProviderError('INVALID_RESPONSE', 'Persistent failure');
+      aiServiceMock.generateStructured.mockRejectedValue(providerError);
+
+      const graph = buildGraph();
+
+      await expect(
+        graph.invoke({ teacherUserId: 'teacher-user-id', request }),
+      ).rejects.toThrow('Persistent failure');
+
+      expect(aiServiceMock.generateStructured).toHaveBeenCalledTimes(3);
+      expect(repairServiceMock.repair).not.toHaveBeenCalled();
+      expect(persistenceServiceMock.saveDraft).not.toHaveBeenCalled();
+    });
+
+    it('does NOT retry AUTHENTICATION errors — propagates immediately', async () => {
+      aiServiceMock.generateStructured.mockRejectedValue(
+        new AiProviderError('AUTHENTICATION', 'Auth failed', 401),
+      );
+
+      const graph = buildGraph();
+
+      await expect(
+        graph.invoke({ teacherUserId: 'teacher-user-id', request }),
+      ).rejects.toThrow('Auth failed');
+
+      // Must only be called once — no retry
+      expect(aiServiceMock.generateStructured).toHaveBeenCalledTimes(1);
+      expect(repairServiceMock.repair).not.toHaveBeenCalled();
+    });
+
+    it('does NOT retry CONFIGURATION errors — propagates immediately', async () => {
+      aiServiceMock.generateStructured.mockRejectedValue(
+        new AiProviderError('CONFIGURATION', 'Missing API key'),
+      );
+
+      const graph = buildGraph();
+
+      await expect(
+        graph.invoke({ teacherUserId: 'teacher-user-id', request }),
+      ).rejects.toThrow('Missing API key');
+
+      expect(aiServiceMock.generateStructured).toHaveBeenCalledTimes(1);
+    });
+
+    it('mixed: INVALID_RESPONSE retry → success → domain validation error → repair → persist', async () => {
+      const invalidPaper = { ...validPaper, durationMinutes: 99 };
+
+      aiServiceMock.generateStructured
+        .mockRejectedValueOnce(
+          new AiProviderError('INVALID_RESPONSE', 'Bad output on attempt 1'),
+        )
+        .mockResolvedValueOnce(invalidPaper); // attempt 2 succeeds but paper has domain error
+
+      repairServiceMock.repair.mockResolvedValue(validPaper);
+
+      const graph = buildGraph();
+      const result = await graph.invoke({ teacherUserId: 'teacher-user-id', request });
+
+      // Provider was called twice (1 failure + 1 success)
+      expect(aiServiceMock.generateStructured).toHaveBeenCalledTimes(2);
+      expect(result.providerAttempts).toBe(2);
+
+      // Domain repair ran once for the DURATION_MISMATCH
+      expect(repairServiceMock.repair).toHaveBeenCalledTimes(1);
+      expect(result.repairCount).toBe(1);
+
+      // Final result is correct
+      expect(result.status).toBe('COMPLETED');
+      expect(persistenceServiceMock.saveDraft).toHaveBeenCalledTimes(1);
+      expect(persistenceServiceMock.saveDraft).toHaveBeenCalledWith(
+        'teacher-user-id',
+        expect.objectContaining(request),
+        validPaper,
+      );
+    });
   });
 });

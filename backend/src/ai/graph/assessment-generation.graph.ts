@@ -7,6 +7,15 @@ import {
 
 import { z } from 'zod';
 
+import { Logger } from '@nestjs/common';
+
+import { AiProviderError } from '../errors/ai-provider.error';
+import {
+  GenerationObservabilityHelper,
+  classifyLatency,
+} from './generation-observability.helper';
+
+
 import {
   generatedPaperSchema,
 } from '../contracts/generated-paper.schema';
@@ -152,6 +161,17 @@ const GraphState =
         .number()
         .default(0),
 
+    providerAttempts:
+      z
+        .number()
+        .default(0),
+
+    lastProviderErrorCode:
+      z
+        .string()
+        .nullable()
+        .default(null),
+
     status:
       z
         .enum([
@@ -171,6 +191,24 @@ const GraphState =
         .optional(),
   });
 
+// ----------------------------------------------------------------
+// Provider-level retry policy
+// Domain validation failures use the repair node — not this.
+// ----------------------------------------------------------------
+
+const RETRYABLE_PROVIDER_ERRORS = new Set([
+  'INVALID_RESPONSE',
+  'TIMEOUT',
+  'UNAVAILABLE',
+  'RATE_LIMIT',
+]);
+
+const MAX_PROVIDER_ATTEMPTS = 3;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function buildAssessmentGenerationGraph(
   aiService: AiService,
 
@@ -182,7 +220,10 @@ export function buildAssessmentGenerationGraph(
 
   persistenceService:
     GeneratedPaperPersistenceService,
+
+  logger: Logger = new Logger('AssessmentGenerationGraph'),
 ) {
+  const obs = new GenerationObservabilityHelper(logger);
   // --------------------------------
   // RETRIEVE
   // --------------------------------
@@ -226,21 +267,65 @@ export function buildAssessmentGenerationGraph(
           state.teacherContext,
         );
 
-      const generatedPaper =
-        await aiService.generateStructured(
-          {
-            messages,
-          },
+      const { subject, board, grade, totalMarks } = state.request;
+      const startMs = Date.now();
+      let lastError: AiProviderError | null = null;
 
-          generatedPaperSchema,
+      for (
+        let attempt = 1;
+        attempt <= MAX_PROVIDER_ATTEMPTS;
+        attempt++
+      ) {
+        // Fixed delay for rate-limit only — avoids hammering the provider.
+        if (lastError?.code === 'RATE_LIMIT') {
+          await sleep(2000);
+        }
 
-          'generated_paper',
-        );
+        obs.logAttemptStart({ subject, board, grade, totalMarks, attempt, maxAttempts: MAX_PROVIDER_ATTEMPTS });
 
-      return {
-        generatedPaper,
-        status: 'VALIDATING',
-      };
+        try {
+          const generatedPaper =
+            await aiService.generateStructured(
+              { messages },
+              generatedPaperSchema,
+              'generated_paper',
+            );
+
+          return {
+            generatedPaper,
+            status: 'VALIDATING',
+            providerAttempts: attempt,
+            lastProviderErrorCode: null,
+          };
+        } catch (error: unknown) {
+          if (
+            error instanceof AiProviderError &&
+            RETRYABLE_PROVIDER_ERRORS.has(error.code)
+          ) {
+            lastError = error;
+            const willRetry = attempt < MAX_PROVIDER_ATTEMPTS;
+            obs.logAttemptFailure({ subject, board, grade, totalMarks, attempt, maxAttempts: MAX_PROVIDER_ATTEMPTS, errorCode: error.code, willRetry });
+            continue;
+          }
+          // Non-retryable (AUTHENTICATION, CONFIGURATION, UNKNOWN) — propagate immediately.
+          if (error instanceof AiProviderError) {
+            obs.logAttemptFailure({ subject, board, grade, totalMarks, attempt, maxAttempts: MAX_PROVIDER_ATTEMPTS, errorCode: error.code, willRetry: false });
+          }
+          throw error;
+        }
+      }
+
+      // All attempts exhausted.
+      obs.logProviderExhausted({ subject, board, grade, maxAttempts: MAX_PROVIDER_ATTEMPTS, errorCode: lastError!.code });
+      obs.logOutcome({
+        subject, board, grade, totalMarks,
+        providerAttempts: MAX_PROVIDER_ATTEMPTS,
+        repairCount: state.repairCount,
+        elapsedMs: Date.now() - startMs,
+        latencyClassification: classifyLatency(Date.now() - startMs),
+        outcome: 'PROVIDER_EXHAUSTED',
+      });
+      throw lastError!;
     };
 
   // --------------------------------
@@ -287,7 +372,8 @@ export function buildAssessmentGenerationGraph(
         };
       }
 
-     
+      const errorCodes = state.validationErrors.map((e) => e.code);
+      obs.logDomainRepair(state.request.subject, state.repairCount + 1, errorCodes);
 
       const repairedPaper =
         await paperRepairService.repair(

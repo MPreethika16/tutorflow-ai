@@ -17,7 +17,10 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-e2e.json"
+    "test:e2e": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-e2e.json",
+    "eval:grading": "cross-env NODE_OPTIONS=--experimental-vm-modules jest run-grading-baseline --forceExit --config jest-eval.json",
+    "eval:generation": "cross-env NODE_OPTIONS=--experimental-vm-modules jest run-generation-baseline --forceExit --config jest-eval.json",
+    "eval:retrieval": "cross-env ALLOW_EVAL_SEED=true DATABASE_URL=\"postgresql://tutorflow:tutorflow_password@localhost:5433/tutorflow_db?schema=public\" NODE_OPTIONS=--experimental-vm-modules jest run-retrieval-baseline --forceExit --config jest-eval.json"
   },
   "dependencies": {
     "@langchain/core": "^1.2.8",

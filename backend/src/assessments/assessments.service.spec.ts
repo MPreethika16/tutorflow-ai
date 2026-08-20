@@ -25,6 +25,7 @@ describe('AssessmentsService', () => {
     },
     assessmentAttempt: {
       findFirst: jest.fn(),
+      update: jest.fn(),
     },
     studentAnswer: {
       findFirst: jest.fn(),
@@ -415,6 +416,103 @@ describe('AssessmentsService', () => {
       expect(result.teacherMarks).toBe(5);
       expect(result.teacherFeedback).toBe('Excellent point');
       expect(result.finalMarks).toBe(5);
+    });
+  });
+
+  describe('publishAttemptResult', () => {
+    it('throws ConflictException if attempt is not SUBMITTED', async () => {
+      prismaMock.assessmentAttempt.findFirst.mockResolvedValue({
+        status: AssessmentAttemptStatus.IN_PROGRESS,
+      });
+
+      await expect(
+        service.publishAttemptResult('teacher-1', 'ASM-1', 'ATT-1'),
+      ).rejects.toThrow('Cannot publish result: Attempt is not submitted');
+    });
+
+    it('throws ConflictException if any evaluation is not APPROVED', async () => {
+      prismaMock.assessmentAttempt.findFirst.mockResolvedValue({
+        status: AssessmentAttemptStatus.SUBMITTED,
+        answers: [
+          {
+            evaluation: {
+              status: EvaluationStatus.WAITING_FOR_REVIEW,
+            },
+          },
+        ],
+      });
+
+      await expect(
+        service.publishAttemptResult('teacher-1', 'ASM-1', 'ATT-1'),
+      ).rejects.toThrow('Cannot publish result: Grading is incomplete or evaluations are pending/failed');
+    });
+
+    it('calculates total marks including unanswered questions and updates attempt', async () => {
+      prismaMock.assessmentAttempt.findFirst.mockResolvedValue({
+        id: 'attempt-id',
+        attemptId: 'ATT-1',
+        status: AssessmentAttemptStatus.SUBMITTED,
+        assessment: {
+          questions: [
+            { marks: 5 }, // answered
+            { marks: 10 }, // answered
+            { marks: 5 }, // unanswered!
+          ],
+        },
+        answers: [
+          {
+            evaluation: {
+              teacherMarks: 4,
+              aiMarks: null,
+              status: EvaluationStatus.APPROVED,
+            },
+          },
+          {
+            evaluation: {
+              teacherMarks: null,
+              aiMarks: 8,
+              status: EvaluationStatus.APPROVED,
+            },
+          },
+        ],
+      });
+
+      const result = await service.publishAttemptResult('teacher-1', 'ASM-1', 'ATT-1');
+
+      expect(prismaMock.assessmentAttempt.update).toHaveBeenCalledWith({
+        where: { id: 'attempt-id' },
+        data: {
+          finalMarks: 12, // 4 + 8
+          maximumMarks: 20, // 5 + 10 + 5
+          publishedAt: expect.any(Date),
+        },
+      });
+
+      expect(result.finalMarks).toBe(12);
+      expect(result.maximumMarks).toBe(20);
+    });
+
+    it('is idempotent: returns existing snapshot without updating if already published', async () => {
+      const existingDate = new Date('2025-01-01T00:00:00.000Z');
+      prismaMock.assessmentAttempt.findFirst.mockResolvedValue({
+        id: 'attempt-id',
+        attemptId: 'ATT-1',
+        status: AssessmentAttemptStatus.SUBMITTED,
+        publishedAt: existingDate,
+        finalMarks: 42,
+        maximumMarks: 100,
+        answers: [], // Validation will pass because it checks existing evaluations, which are empty
+      });
+
+      const result = await service.publishAttemptResult('teacher-1', 'ASM-1', 'ATT-1');
+
+      expect(prismaMock.assessmentAttempt.update).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        attemptId: 'ATT-1',
+        finalMarks: 42,
+        maximumMarks: 100,
+        publishedAt: existingDate,
+      });
     });
   });
 });

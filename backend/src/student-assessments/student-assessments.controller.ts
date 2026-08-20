@@ -115,4 +115,15 @@ submitAttempt(
       attemptId,
     );
 }
+
+  @Get('attempts/:attemptId/result')
+  getResult(
+    @CurrentUser() user: JwtPayload,
+    @Param('attemptId') attemptId: string,
+  ) {
+    return this.studentAssessmentsService.getResultForStudent(
+      user.sub,
+      attemptId,
+    );
+  }
 }

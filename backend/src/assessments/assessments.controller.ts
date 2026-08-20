@@ -146,4 +146,17 @@ archiveAssessment(
       dto,
     );
   }
+
+  @Post(':assessmentId/attempts/:attemptId/publish')
+  publishAttemptResult(
+    @CurrentUser() user: JwtPayload,
+    @Param('assessmentId') assessmentId: string,
+    @Param('attemptId') attemptId: string,
+  ) {
+    return this.assessmentsService.publishAttemptResult(
+      user.sub,
+      assessmentId,
+      attemptId,
+    );
+  }
 }

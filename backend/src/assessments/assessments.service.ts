@@ -8,6 +8,7 @@ import {
 import {
   AssessmentKind,
   AssessmentStatus,
+  AssessmentAttemptStatus,
   ContentSource,
   EvaluationStatus,
   Prisma,
@@ -1038,6 +1039,90 @@ async getStatisticsForTeacher(
       status: updatedEvaluation.status,
       finalMarks:
         updatedEvaluation.teacherMarks ?? updatedEvaluation.aiMarks,
+    };
+  }
+
+  async publishAttemptResult(
+    teacherUserId: string,
+    assessmentId: string,
+    attemptId: string,
+  ) {
+    const attempt = await this.prisma.assessmentAttempt.findFirst({
+      where: {
+        attemptId,
+        assessment: {
+          assessmentId,
+          teacherId: teacherUserId,
+        },
+      },
+      include: {
+        assessment: {
+          include: {
+            questions: true,
+          },
+        },
+        answers: {
+          include: {
+            evaluation: true,
+          },
+        },
+      },
+    });
+
+    if (!attempt) {
+      throw new NotFoundException('Assessment attempt not found');
+    }
+
+    if (attempt.status !== AssessmentAttemptStatus.SUBMITTED) {
+      throw new ConflictException('Cannot publish result: Attempt is not submitted');
+    }
+
+    // Check if grading is complete
+    for (const answer of attempt.answers) {
+      if (!answer.evaluation || answer.evaluation.status !== EvaluationStatus.APPROVED) {
+        throw new ConflictException('Cannot publish result: Grading is incomplete or evaluations are pending/failed');
+      }
+    }
+
+    if (attempt.publishedAt) {
+      return {
+        attemptId: attempt.attemptId,
+        finalMarks: attempt.finalMarks ?? 0,
+        maximumMarks: attempt.maximumMarks ?? 0,
+        publishedAt: attempt.publishedAt,
+      };
+    }
+
+    let maximumMarks = 0;
+    let finalMarks = 0;
+
+    // sum marks of all questions in the assessment
+    for (const question of attempt.assessment.questions) {
+      maximumMarks += question.marks;
+    }
+
+    // sum marks of all approved answers
+    for (const answer of attempt.answers) {
+      const mark = answer.evaluation!.teacherMarks ?? answer.evaluation!.aiMarks ?? 0;
+      finalMarks += mark;
+    }
+
+    const publishedAt = new Date();
+
+    await this.prisma.assessmentAttempt.update({
+      where: { id: attempt.id },
+      data: {
+        finalMarks,
+        maximumMarks,
+        publishedAt,
+      },
+    });
+
+    return {
+      attemptId: attempt.attemptId,
+      finalMarks,
+      maximumMarks,
+      publishedAt,
     };
   }
 }

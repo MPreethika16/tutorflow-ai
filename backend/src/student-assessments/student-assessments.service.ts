@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -484,6 +485,86 @@ export class StudentAssessmentsService {
       },
 
       questions,
+    };
+  }
+
+  async getResultForStudent(studentUserId: string, attemptId: string) {
+    const attempt = await this.prisma.assessmentAttempt.findFirst({
+      where: this.ownedAttemptWhere(studentUserId, attemptId),
+      select: {
+        attemptId: true,
+        status: true,
+        finalMarks: true,
+        maximumMarks: true,
+        publishedAt: true,
+        assessment: {
+          select: {
+            questions: {
+              select: {
+                questionId: true,
+                marks: true,
+                id: true,
+              },
+            },
+          },
+        },
+        answers: {
+          select: {
+            questionId: true,
+            evaluation: {
+              select: {
+                teacherMarks: true,
+                aiMarks: true,
+                teacherFeedback: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!attempt) {
+      throw new NotFoundException('Assessment attempt not found');
+    }
+
+    if (attempt.status === AssessmentAttemptStatus.IN_PROGRESS) {
+      throw new ConflictException('Result not yet available');
+    }
+
+    if (!attempt.publishedAt) {
+      throw new ForbiddenException('Result has not been released by the teacher');
+    }
+
+    const answersByQuestionId = new Map(
+      attempt.answers.map((a) => [a.questionId, a])
+    );
+
+    const answers = attempt.assessment.questions.map((question) => {
+      const savedAnswer = answersByQuestionId.get(question.id);
+      
+      let marks = 0;
+      let teacherFeedback: string | null = null;
+
+      if (savedAnswer && savedAnswer.evaluation) {
+        marks = savedAnswer.evaluation.teacherMarks ?? savedAnswer.evaluation.aiMarks ?? 0;
+        teacherFeedback = savedAnswer.evaluation.teacherFeedback;
+      }
+
+      return {
+        questionId: question.questionId,
+        marks,
+        maximumMarks: question.marks,
+        teacherFeedback,
+      };
+    });
+
+    return {
+      attemptId: attempt.attemptId,
+      status: 'GRADED',
+      finalMarks: attempt.finalMarks,
+      maximumMarks: attempt.maximumMarks,
+      publishedAt: attempt.publishedAt,
+      answers,
     };
   }
 

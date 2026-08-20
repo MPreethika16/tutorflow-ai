@@ -729,4 +729,86 @@ describe('StudentAssessmentsService', () => {
       ).not.toHaveBeenCalled();
     });
   });
+
+  describe('getResultForStudent', () => {
+    it('throws NotFoundException when attempt does not exist', async () => {
+      prismaMock.assessmentAttempt.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.getResultForStudent('student-1', 'ATT-1'),
+      ).rejects.toThrow(new NotFoundException('Assessment attempt not found'));
+    });
+
+    it('throws ConflictException if attempt is IN_PROGRESS', async () => {
+      prismaMock.assessmentAttempt.findFirst.mockResolvedValue({
+        status: AssessmentAttemptStatus.IN_PROGRESS,
+      });
+
+      await expect(
+        service.getResultForStudent('student-1', 'ATT-1'),
+      ).rejects.toThrow(new ConflictException('Result not yet available'));
+    });
+
+    it('throws ForbiddenException if attempt is not published', async () => {
+      prismaMock.assessmentAttempt.findFirst.mockResolvedValue({
+        status: AssessmentAttemptStatus.SUBMITTED,
+        publishedAt: null,
+      });
+
+      await expect(
+        service.getResultForStudent('student-1', 'ATT-1'),
+      ).rejects.toThrow('Result has not been released by the teacher');
+    });
+
+    it('returns the graded result correctly, injecting 0s for unanswered questions', async () => {
+      const publishedAt = new Date();
+      prismaMock.assessmentAttempt.findFirst.mockResolvedValue({
+        attemptId: 'ATT-1',
+        status: AssessmentAttemptStatus.SUBMITTED,
+        finalMarks: 5,
+        maximumMarks: 10,
+        publishedAt,
+        assessment: {
+          questions: [
+            { id: 'q-1', questionId: 'Q-1', marks: 5 }, // answered
+            { id: 'q-2', questionId: 'Q-2', marks: 5 }, // unanswered
+          ],
+        },
+        answers: [
+          {
+            questionId: 'q-1',
+            evaluation: {
+              teacherMarks: null,
+              aiMarks: 5,
+              teacherFeedback: 'Great job',
+            },
+          },
+        ],
+      });
+
+      const result = await service.getResultForStudent('student-1', 'ATT-1');
+
+      expect(result).toEqual({
+        attemptId: 'ATT-1',
+        status: 'GRADED',
+        finalMarks: 5,
+        maximumMarks: 10,
+        publishedAt,
+        answers: [
+          {
+            questionId: 'Q-1',
+            marks: 5,
+            maximumMarks: 5,
+            teacherFeedback: 'Great job',
+          },
+          {
+            questionId: 'Q-2',
+            marks: 0,
+            maximumMarks: 5,
+            teacherFeedback: null,
+          },
+        ],
+      });
+    });
+  });
 });

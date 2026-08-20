@@ -3,7 +3,10 @@ export type AnswerEvaluationErrorCode =
   | 'MARKS_EXCEED_MAXIMUM'
   | 'INVALID_CONFIDENCE'
   | 'EMPTY_FEEDBACK'
-  | 'EMPTY_REASONING';
+  | 'EMPTY_REASONING'
+  | 'DUPLICATE_CRITERION'
+  | 'MARKS_MISMATCH'
+  | 'MAX_MARKS_MISMATCH';
 
 export interface AnswerEvaluationValidationError {
   code: AnswerEvaluationErrorCode;

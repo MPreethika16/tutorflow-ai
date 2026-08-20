@@ -111,3 +111,9 @@ npm run eval:retrieval
 # Run Grading Baseline
 npm run eval:grading
 ```
+
+## 6. Dataset Changelog
+
+### V1.1 (Phase 13.4 & 13.6)
+- **Dataset Versioning Introduced**: To support the new grading replay fixtures, the dataset is officially labeled as `grading-v1.1`.
+- **Grading Dataset (`grad-code-2`)**: Benchmark label correction. The original expected deduction of 1 mark for missing an empty array check was factually incorrect (the student code successfully handles empty arrays). The expected range was corrected from `[2, 2]` to `[3, 3]`. This is not a baseline regression, but a correction of an invalid expectation.

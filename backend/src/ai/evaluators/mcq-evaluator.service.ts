@@ -12,6 +12,7 @@ export class McqEvaluatorService {
     if (!studentAnswer.selectedOption) {
       return {
         suggestedMarks: 0,
+        criteria: [{ criterion: 'Selected an option', awardedMarks: 0, maxMarks: question.marks, status: 'NOT_MET' }],
         feedback: 'No option selected.',
         reasoning: 'The student did not select an option.',
         confidence: 1,
@@ -25,6 +26,7 @@ export class McqEvaluatorService {
     if (isCorrect) {
       return {
         suggestedMarks: question.marks,
+        criteria: [{ criterion: 'Selected correct option', awardedMarks: question.marks, maxMarks: question.marks, status: 'MET' }],
         feedback: 'Correct.',
         reasoning: `The selected option (${studentAnswer.selectedOption}) matches the correct option (${question.correctOption}).`,
         confidence: 1,
@@ -32,6 +34,7 @@ export class McqEvaluatorService {
     } else {
       return {
         suggestedMarks: 0,
+        criteria: [{ criterion: 'Selected correct option', awardedMarks: 0, maxMarks: question.marks, status: 'NOT_MET' }],
         feedback: 'Incorrect.',
         reasoning: `The selected option (${studentAnswer.selectedOption}) does not match the correct option (${question.correctOption}).`,
         confidence: 1,

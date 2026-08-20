@@ -1,0 +1,25 @@
+[
+  {
+    "caseId": "grad-photo-5",
+    "result": {
+      "suggestedMarks": 0,
+      "criteria": [
+        {
+          "criterion": "Answered question",
+          "awardedMarks": 0,
+          "maxMarks": 5,
+          "status": "NOT_MET"
+        }
+      ],
+      "feedback": "No answer was provided.",
+      "reasoning": "The student did not submit a written answer.",
+      "confidence": 1
+    },
+    "captureMetadata": {
+      "model": "BYPASS_LOCAL",
+      "capturedAt": "2026-08-20T10:00:00Z",
+      "datasetVersion": "grading-v1.1",
+      "captureSource": "DETERMINISTIC_BYPASS"
+    }
+  }
+]

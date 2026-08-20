@@ -5,6 +5,9 @@ import { AnswerEvaluationService } from '../../../src/ai/evaluators/answer-evalu
 import { GRADING_EVAL_CASES } from './datasets/grading-cases';
 import { marksWithinExpectedRange, scoreBoundsValid, absoluteMarkError } from './metrics/grading.metrics';
 import { REGRESSION_THRESHOLDS, printEvaluationResult, EvalResult } from './regression/regression-thresholds';
+import * as fs from 'fs';
+import * as path from 'path';
+import { attemptCapture } from './capture-helper';
 
 describe('Grading Baseline Runner', () => {
   it('runs grading baseline on all cases', async () => {
@@ -29,6 +32,19 @@ describe('Grading Baseline Runner', () => {
     let maxLatency = 0;
 
     let totalAttempts = 0;
+
+    const isCaptureMode = process.env.EVAL_CAPTURE === 'true';
+    const fixturePath = path.join(__dirname, 'datasets', 'grading-replay.fixture.json');
+    let captures: any[] = [];
+    if (isCaptureMode) {
+      if (fs.existsSync(fixturePath)) {
+        captures = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+      }
+    }
+
+    let capturedCount = 0;
+    let skippedCaptures = 0;
+    let captureValidationFailures = 0;
 
     console.log('\nRunning cases through EvaluationLoopService...\n');
     const perCaseReports: string[] = [];
@@ -64,6 +80,17 @@ describe('Grading Baseline Runner', () => {
         const expectedStr = tc.expectedRange ? `${tc.expectedRange[0]}-${tc.expectedRange[1]}` : 'N/A';
         perCaseReports.push(`[${status}] ${tc.id.padEnd(20)} expected ${expectedStr.padEnd(5)} | actual ${result.suggestedMarks} (attempts: ${attempts})`);
         successful++;
+
+        if (isCaptureMode) {
+          const captureOutcome = attemptCapture(tc, result, captures, fixturePath, 'LLM_PROVIDER');
+          if (captureOutcome.captured) {
+            capturedCount++;
+          } else if (captureOutcome.skipped) {
+            skippedCaptures++;
+          } else {
+            captureValidationFailures += captureOutcome.validationFailures;
+          }
+        }
       } catch (error: any) {
         const attempts = spy.mock.calls.length;
         totalAttempts += attempts;
@@ -111,6 +138,17 @@ describe('Grading Baseline Runner', () => {
 
     console.log('Per-case:');
     perCaseReports.forEach((r) => console.log(r));
+
+    if (isCaptureMode) {
+      console.log('\n--- CAPTURE MODE SUMMARY ---');
+      console.log(`Attempted cases: ${totalCases}`);
+      console.log(`Newly captured LLM cases: ${capturedCount}`);
+      console.log(`Existing captures skipped: ${skippedCaptures}`);
+      console.log(`Provider failures: ${failures}`);
+      console.log(`Validation failures: ${captureValidationFailures}`);
+      console.log(`Remaining missing captures: ${totalCases - captures.length}`);
+      console.log('----------------------------\n');
+    }
 
     console.log('\nCOMPARISON (Phase 11.5 vs Phase 11.6)');
     console.log('Metric                         11.5 single-call   11.6 production-loop');

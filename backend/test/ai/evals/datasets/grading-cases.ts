@@ -7,7 +7,7 @@ const Q_PHOTOSYNTHESIS = {
   prompt: 'Explain the process of photosynthesis and its importance to life on Earth.',
   marks: 5,
   modelAnswer: 'Photosynthesis is the process by which green plants use sunlight to synthesize nutrients from carbon dioxide and water...',
-  gradingInstructions: 'Give up to 2 marks for explaining the process. Give 1 mark for mentioning chlorophyll or oxygen. Give up to 2 marks for explaining importance.',
+  gradingInstructions: '- Explains the process (conversion of light energy to chemical energy): up to 2 marks\n- Mentions chlorophyll or oxygen: 1 mark\n- Explains importance to life on Earth (food chain base, oxygen production): up to 2 marks',
 };
 
 const Q_CODE_SUM = {
@@ -16,7 +16,7 @@ const Q_CODE_SUM = {
   prompt: 'Write a JavaScript function that takes an array of numbers and returns the sum.',
   marks: 3,
   modelAnswer: 'function sum(arr) { return arr.reduce((a, b) => a + b, 0); }',
-  gradingInstructions: '1 mark for correct function signature. 2 marks for correct logic. Deduct 1 mark if it does not handle empty arrays properly.',
+  gradingInstructions: '- Correct function signature (takes array parameter): 1 mark\n- Correct logic to sum array elements: 2 marks\n- Deduction: Deduct 1 mark if the function does not properly return 0 for an empty array.',
 };
 
 export const GRADING_EVAL_CASES: GradingEvalCase[] = [
@@ -69,10 +69,10 @@ export const GRADING_EVAL_CASES: GradingEvalCase[] = [
   },
   {
     id: 'grad-code-2',
-    description: 'mostly correct code (missing empty array check but functionally fine for non-empty)',
+    description: 'mostly correct code (functionally fine for non-empty and empty)',
     question: Q_CODE_SUM as any,
     studentAnswer: { textAnswer: 'function sum(arr) { let total = 0; for(let n of arr) { total += n; } return total; }' } as any,
-    expectedRange: [2, 2],
+    expectedRange: [3, 3],
   },
   {
     id: 'grad-code-3',

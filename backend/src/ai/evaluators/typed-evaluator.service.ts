@@ -21,6 +21,7 @@ export class TypedEvaluatorService {
     if (!studentAnswer.textAnswer || studentAnswer.textAnswer.trim().length === 0) {
       return {
         suggestedMarks: 0,
+        criteria: [{ criterion: 'Answered question', awardedMarks: 0, maxMarks: question.marks, status: 'NOT_MET' }],
         feedback: 'No answer was provided.',
         reasoning: 'The student did not submit a written answer.',
         confidence: 1,

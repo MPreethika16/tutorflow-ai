@@ -71,4 +71,79 @@ describe('validateAnswerEvaluation', () => {
     expect(codes).toContain('EMPTY_REASONING');
     expect(codes).toContain('INVALID_CONFIDENCE');
   });
+
+  describe('criteria validation', () => {
+    const evalWithCriteria: AnswerEvaluationResult = {
+      ...validEvaluation,
+      criteria: [
+        { criterion: 'C1', awardedMarks: 2, maxMarks: 5, status: 'PARTIAL' },
+        { criterion: 'C2', awardedMarks: 3, maxMarks: 5, status: 'MET' },
+      ],
+    };
+
+    it('passes with valid criteria', () => {
+      const result = validateAnswerEvaluation(evalWithCriteria, maximumMarks);
+      expect(result.valid).toBe(true);
+    });
+
+    it('fails if awardedMarks < 0', () => {
+      const badEval = {
+        ...evalWithCriteria,
+        criteria: [{ criterion: 'C1', awardedMarks: -1, maxMarks: 10, status: 'NOT_MET' as const }],
+      };
+      const result = validateAnswerEvaluation(badEval, maximumMarks);
+      expect(result.valid).toBe(false);
+      expect(result.errors.map(e => e.code)).toContain('NEGATIVE_MARKS');
+    });
+
+    it('fails if awardedMarks > maxMarks', () => {
+      const badEval = {
+        ...evalWithCriteria,
+        criteria: [
+          { criterion: 'C1', awardedMarks: 6, maxMarks: 5, status: 'MET' as const },
+          { criterion: 'C2', awardedMarks: 0, maxMarks: 5, status: 'NOT_MET' as const },
+        ],
+        suggestedMarks: 6,
+      };
+      const result = validateAnswerEvaluation(badEval, maximumMarks);
+      expect(result.valid).toBe(false);
+      expect(result.errors.map(e => e.code)).toContain('MARKS_EXCEED_MAXIMUM');
+    });
+
+    it('fails if sum of criteria max marks does not equal question maximum marks', () => {
+      const badEval = {
+        ...evalWithCriteria,
+        criteria: [
+          { criterion: 'C1', awardedMarks: 2, maxMarks: 4, status: 'PARTIAL' as const },
+          { criterion: 'C2', awardedMarks: 3, maxMarks: 4, status: 'MET' as const },
+        ],
+      };
+      const result = validateAnswerEvaluation(badEval, maximumMarks);
+      expect(result.valid).toBe(false);
+      expect(result.errors.map(e => e.code)).toContain('MAX_MARKS_MISMATCH');
+    });
+
+    it('fails if sum of criteria awarded marks does not equal suggestedMarks', () => {
+      const badEval = {
+        ...evalWithCriteria,
+        suggestedMarks: 10,
+      };
+      const result = validateAnswerEvaluation(badEval, maximumMarks);
+      expect(result.valid).toBe(false);
+      expect(result.errors.map(e => e.code)).toContain('MARKS_MISMATCH');
+    });
+
+    it('fails on duplicate criteria', () => {
+      const badEval = {
+        ...evalWithCriteria,
+        criteria: [
+          { criterion: 'C1', awardedMarks: 2, maxMarks: 5, status: 'PARTIAL' as const },
+          { criterion: 'C1', awardedMarks: 3, maxMarks: 5, status: 'MET' as const },
+        ],
+      };
+      const result = validateAnswerEvaluation(badEval, maximumMarks);
+      expect(result.valid).toBe(false);
+      expect(result.errors.map(e => e.code)).toContain('DUPLICATE_CRITERION');
+    });
+  });
 });

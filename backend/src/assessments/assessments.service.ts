@@ -9,6 +9,7 @@ import {
   AssessmentKind,
   AssessmentStatus,
   ContentSource,
+  EvaluationStatus,
   Prisma,
 } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -828,4 +829,216 @@ async getStatisticsForTeacher(
     archivedAssessments,
   };
 }
+
+  async getAttemptForReview(
+    teacherUserId: string,
+    assessmentId: string,
+    attemptId: string,
+  ) {
+    const attempt = await this.prisma.assessmentAttempt.findFirst({
+      where: {
+        attemptId,
+        assessment: {
+          assessmentId,
+          teacherId: teacherUserId,
+        },
+      },
+      select: {
+        attemptId: true,
+        status: true,
+        submittedAt: true,
+        answers: {
+          select: {
+            id: true,
+            selectedOption: true,
+            textAnswer: true,
+            voiceUrl: true,
+            question: {
+              select: {
+                id: true,
+                prompt: true,
+                type: true,
+                marks: true,
+                modelAnswer: true,
+                gradingInstructions: true,
+              },
+            },
+            evaluation: {
+              select: {
+                aiMarks: true,
+                aiFeedback: true,
+                aiReasoning: true,
+                aiConfidence: true,
+                teacherMarks: true,
+                teacherFeedback: true,
+                status: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!attempt) {
+      throw new NotFoundException('Assessment attempt not found');
+    }
+
+    const totalAnswers = attempt.answers.length;
+    let approvedAnswers = 0;
+    let waitingForReviewAnswers = 0;
+    let failedEvaluations = 0;
+    let reviewableCount = 0;
+
+    let totalMaximumMarks = 0;
+    let totalApprovedMarks = 0;
+
+    const answers = attempt.answers.map((answer) => {
+      totalMaximumMarks += answer.question.marks ?? 0;
+      
+      let finalMarks: number | null = null;
+
+      if (answer.evaluation) {
+        reviewableCount++;
+        
+        finalMarks = answer.evaluation.teacherMarks ?? answer.evaluation.aiMarks;
+
+        if (answer.evaluation.status === EvaluationStatus.APPROVED) {
+          approvedAnswers++;
+          totalApprovedMarks += finalMarks ?? 0;
+        } else if (
+          answer.evaluation.status === EvaluationStatus.WAITING_FOR_REVIEW
+        ) {
+          waitingForReviewAnswers++;
+        } else if (answer.evaluation.status === EvaluationStatus.FAILED) {
+          failedEvaluations++;
+        }
+      }
+
+      return {
+        id: answer.id,
+        selectedOption: answer.selectedOption,
+        textAnswer: answer.textAnswer,
+        voiceUrl: answer.voiceUrl,
+        question: answer.question,
+        evaluation: answer.evaluation,
+        finalMarks,
+      };
+    });
+
+    const reviewComplete =
+      reviewableCount > 0
+        ? approvedAnswers === reviewableCount
+        : false;
+
+    return {
+      attempt: {
+        attemptId: attempt.attemptId,
+        status: attempt.status,
+        submittedAt: attempt.submittedAt,
+      },
+      answers,
+      summary: {
+        totalAnswers,
+        approvedAnswers,
+        waitingForReviewAnswers,
+        failedEvaluations,
+        totalMaximumMarks,
+        totalApprovedMarks,
+        reviewComplete,
+      },
+    };
+  }
+
+  async reviewAnswer(
+    teacherUserId: string,
+    assessmentId: string,
+    attemptId: string,
+    answerId: string,
+    dto: { teacherMarks?: number; teacherFeedback?: string },
+  ) {
+    const answer = await this.prisma.studentAnswer.findFirst({
+      where: {
+        id: answerId,
+        attempt: {
+          attemptId,
+          assessment: {
+            assessmentId,
+            teacherId: teacherUserId,
+          },
+        },
+      },
+      include: {
+        question: true,
+        evaluation: true,
+      },
+    });
+
+    if (!answer) {
+      throw new NotFoundException('Answer not found');
+    }
+
+    if (
+      !answer.evaluation ||
+      answer.evaluation.status !== EvaluationStatus.WAITING_FOR_REVIEW
+    ) {
+      throw new ConflictException(
+        'Answer evaluation is not in WAITING_FOR_REVIEW status',
+      );
+    }
+
+    let finalTeacherMarks: number | null | undefined = undefined;
+    let finalTeacherFeedback: string | null | undefined = undefined;
+
+    if (dto.teacherMarks !== undefined && dto.teacherMarks !== null) {
+      if (dto.teacherMarks < 0 || dto.teacherMarks > answer.question.marks) {
+        throw new BadRequestException(
+          'Teacher marks must be between 0 and maximum question marks',
+        );
+      }
+      finalTeacherMarks = dto.teacherMarks;
+    } else if (dto.teacherMarks === null) {
+      finalTeacherMarks = null;
+    }
+
+    if (dto.teacherFeedback !== undefined && dto.teacherFeedback !== null) {
+      const trimmed = dto.teacherFeedback.trim();
+      if (trimmed === '') {
+        throw new BadRequestException(
+          'Teacher feedback cannot be whitespace only',
+        );
+      }
+      finalTeacherFeedback = trimmed;
+    } else if (dto.teacherFeedback === null) {
+      finalTeacherFeedback = null;
+    }
+
+    const updatedEvaluation = await this.prisma.answerEvaluation.update({
+      where: { id: answer.evaluation.id },
+      data: {
+        teacherMarks: finalTeacherMarks,
+        teacherFeedback: finalTeacherFeedback,
+        status: EvaluationStatus.APPROVED,
+      },
+      select: {
+        aiMarks: true,
+        aiFeedback: true,
+        aiConfidence: true,
+        teacherMarks: true,
+        teacherFeedback: true,
+        status: true,
+      },
+    });
+
+    return {
+      aiMarks: updatedEvaluation.aiMarks,
+      aiFeedback: updatedEvaluation.aiFeedback,
+      aiConfidence: updatedEvaluation.aiConfidence,
+      teacherMarks: updatedEvaluation.teacherMarks,
+      teacherFeedback: updatedEvaluation.teacherFeedback,
+      status: updatedEvaluation.status,
+      finalMarks:
+        updatedEvaluation.teacherMarks ?? updatedEvaluation.aiMarks,
+    };
+  }
 }
+

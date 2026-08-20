@@ -20,6 +20,7 @@ import { AssessmentsService } from './assessments.service';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { ListAssessmentsDto } from './dto/list-assessments.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
+import { ReviewAnswerDto } from './dto/review-answer.dto';
 
 @Controller('assessments')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -116,5 +117,33 @@ archiveAssessment(
   );
 }
 
+  @Get(':assessmentId/attempts/:attemptId/review')
+  getAttemptForReview(
+    @CurrentUser() user: JwtPayload,
+    @Param('assessmentId') assessmentId: string,
+    @Param('attemptId') attemptId: string,
+  ) {
+    return this.assessmentsService.getAttemptForReview(
+      user.sub,
+      assessmentId,
+      attemptId,
+    );
+  }
 
+  @Patch(':assessmentId/attempts/:attemptId/answers/:answerId/review')
+  reviewAnswer(
+    @CurrentUser() user: JwtPayload,
+    @Param('assessmentId') assessmentId: string,
+    @Param('attemptId') attemptId: string,
+    @Param('answerId') answerId: string,
+    @Body() dto: ReviewAnswerDto,
+  ) {
+    return this.assessmentsService.reviewAnswer(
+      user.sub,
+      assessmentId,
+      attemptId,
+      answerId,
+      dto,
+    );
+  }
 }

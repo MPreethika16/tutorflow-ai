@@ -61,15 +61,15 @@ export class TeacherStyleRetriever {
           q.prompt, 
           q.marks, 
           q.options,
-          q.embedding <=> ${embeddingString}::vector AS distance
+          q."embedding" <=> ${embeddingString}::vector AS distance
         FROM "Question" q
         INNER JOIN "Assessment" a ON q."assessmentId" = a.id
-        WHERE q.embedding IS NOT NULL
+        WHERE q."embedding" IS NOT NULL
           AND a."teacherId" = ${input.teacherUserId}::uuid
           AND a.board ILIKE ${input.board.trim()}
           AND a.grade ILIKE ${input.grade.trim()}
           AND a.subject ILIKE ${input.subject.trim()}
-          AND (q.embedding <=> ${embeddingString}::vector) <= ${TEACHER_STYLE_MAX_COSINE_DISTANCE}
+          AND (q."embedding" <=> ${embeddingString}::vector) <= ${TEACHER_STYLE_MAX_COSINE_DISTANCE}
         ORDER BY distance ASC
         LIMIT ${topK}
       `;

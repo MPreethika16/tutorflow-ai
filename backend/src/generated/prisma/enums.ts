@@ -78,3 +78,10 @@ export const ContentSource = {
 } as const
 
 export type ContentSource = (typeof ContentSource)[keyof typeof ContentSource]
+
+
+export const NotificationType = {
+  RESULT_PUBLISHED: 'RESULT_PUBLISHED'
+} as const
+
+export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType]

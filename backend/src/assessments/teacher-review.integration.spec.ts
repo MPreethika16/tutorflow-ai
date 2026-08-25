@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AssessmentsService } from './assessments.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -61,6 +62,7 @@ describe('Teacher Review Workflow (Integration)', () => {
       providers: [
         AssessmentsService,
         { provide: PrismaService, useValue: prismaMock },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile();
 

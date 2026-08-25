@@ -19,10 +19,14 @@ import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { generateAssessmentId } from './utils/assessment.util';
 import { ListAssessmentsDto } from './dto/list-assessments.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AssessmentResultPublishedEvent } from '../notifications/events/assessment-result-published.event';
+
 @Injectable()
 export class AssessmentsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -1066,6 +1070,9 @@ async getStatisticsForTeacher(
             evaluation: true,
           },
         },
+        student: {
+          select: { userId: true },
+        },
       },
     });
 
@@ -1118,12 +1125,398 @@ async getStatisticsForTeacher(
       },
     });
 
+    this.eventEmitter.emit(
+      'assessment.result_published',
+      new AssessmentResultPublishedEvent(
+        attempt.attemptId,
+        attempt.student.userId,
+        attempt.assessment.title
+      )
+    );
+
     return {
       attemptId: attempt.attemptId,
       finalMarks,
       maximumMarks,
       publishedAt,
     };
+  }
+
+  async getAssessmentAnalytics(teacherUserId: string, assessmentId: string) {
+    const assessment = await this.prisma.assessment.findUnique({
+      where: {
+        assessmentId,
+        teacherId: teacherUserId,
+      },
+      include: {
+        questions: true,
+      },
+    });
+
+    if (!assessment) {
+      throw new NotFoundException('Assessment not found');
+    }
+
+    const attempts = await this.prisma.assessmentAttempt.findMany({
+      where: {
+        assessmentId: assessment.id,
+      },
+      include: {
+        answers: {
+          include: {
+            evaluation: true,
+          },
+        },
+      },
+    });
+
+    const totalAttempts = attempts.length;
+    const submittedAttempts = attempts.filter((a) => a.status === AssessmentAttemptStatus.SUBMITTED);
+    const publishedResults = submittedAttempts.filter((a) => a.publishedAt != null);
+
+    let averageMarks: number | null = null;
+    let averagePercentage: number | null = null;
+    let highestMarks: number | null = null;
+    let lowestMarks: number | null = null;
+
+    if (publishedResults.length > 0) {
+      const sum = publishedResults.reduce((acc, curr) => acc + (curr.finalMarks ?? 0), 0);
+      averageMarks = sum / publishedResults.length;
+
+      if (assessment.maximumMarks > 0) {
+        averagePercentage = (averageMarks / assessment.maximumMarks) * 100;
+        averagePercentage = Math.round(averagePercentage * 10) / 10;
+      }
+
+      highestMarks = Math.max(...publishedResults.map(a => a.finalMarks ?? 0));
+      lowestMarks = Math.min(...publishedResults.map(a => a.finalMarks ?? 0));
+    }
+
+    const questions = assessment.questions.map((question) => {
+      let numberAnswered = 0;
+      let sumMarks = 0;
+
+      for (const attempt of publishedResults) {
+        const answer = attempt.answers.find(a => a.questionId === question.id);
+        if (answer) {
+          numberAnswered++;
+          const marks = answer.evaluation?.teacherMarks ?? answer.evaluation?.aiMarks ?? 0;
+          sumMarks += marks;
+        }
+      }
+
+      const numberUnanswered = publishedResults.length - numberAnswered;
+      let qAverageMarks: number | null = null;
+      let qAveragePercentage: number | null = null;
+
+      if (publishedResults.length > 0) {
+        qAverageMarks = sumMarks / publishedResults.length;
+        if (question.marks > 0) {
+          qAveragePercentage = (qAverageMarks / question.marks) * 100;
+          qAveragePercentage = Math.round(qAveragePercentage * 10) / 10;
+        }
+      }
+
+      return {
+        questionId: question.questionId,
+        prompt: question.prompt,
+        maximumMarks: question.marks,
+        numberAnswered,
+        numberUnanswered,
+        averageMarks: qAverageMarks,
+        averagePercentage: qAveragePercentage,
+      };
+    });
+
+    return {
+      assessmentId: assessment.assessmentId,
+      summary: {
+        totalAttempts,
+        submittedAttempts: submittedAttempts.length,
+        publishedResults: publishedResults.length,
+        averageMarks,
+        averagePercentage,
+        highestMarks,
+        lowestMarks,
+      },
+      questions,
+    };
+  }
+
+  private escapeCsvCell(value: string | number | Date | null | undefined): string {
+    if (value == null) return '';
+
+    let str = value instanceof Date ? value.toISOString() : String(value);
+
+    // Formula injection protection (CWE-1236)
+    if (str.startsWith('=') || str.startsWith('+') || str.startsWith('-') || str.startsWith('@')) {
+      str = "'" + str;
+    }
+
+    // CSV escaping (quotes, commas, newlines)
+    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+      str = `"${str.replace(/"/g, '""')}"`;
+    }
+
+    return str;
+  }
+
+  async exportResultsForTeacher(teacherUserId: string, assessmentId: string): Promise<string> {
+    const assessment = await this.prisma.assessment.findUnique({
+      where: {
+        assessmentId,
+        teacherId: teacherUserId,
+      },
+      include: {
+        questions: {
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    if (!assessment) {
+      throw new NotFoundException('Assessment not found');
+    }
+
+    const attempts = await this.prisma.assessmentAttempt.findMany({
+      where: {
+        assessmentId: assessment.id,
+        publishedAt: { not: null },
+        finalMarks: { not: null },
+        maximumMarks: { not: null },
+      },
+      include: {
+        student: {
+          include: { user: true },
+        },
+        answers: {
+          include: { evaluation: true },
+        },
+      },
+      orderBy: { publishedAt: 'desc' },
+    });
+
+    // Headers
+    const headers = [
+      'Student Name',
+      'Final Marks',
+      'Maximum Marks',
+      'Percentage',
+      'Submitted At',
+      'Published At',
+    ];
+
+    for (const q of assessment.questions) {
+      headers.push(`Q${q.order + 1} (${q.marks} marks)`);
+    }
+
+    let csv = headers.map((h) => this.escapeCsvCell(h)).join(',') + '\n';
+
+    // Rows
+    for (const attempt of attempts) {
+      const studentName = `${attempt.student.user.firstName} ${attempt.student.user.lastName}`.trim();
+      let percentage = 0;
+      if (attempt.maximumMarks! > 0) {
+        percentage = (attempt.finalMarks! / attempt.maximumMarks!) * 100;
+        percentage = Math.round(percentage * 10) / 10;
+      }
+
+      const row = [
+        studentName,
+        attempt.finalMarks,
+        attempt.maximumMarks,
+        percentage,
+        attempt.submittedAt,
+        attempt.publishedAt,
+      ];
+
+      for (const q of assessment.questions) {
+        const answer = attempt.answers.find((a) => a.questionId === q.id);
+        const marks = answer?.evaluation?.teacherMarks ?? answer?.evaluation?.aiMarks ?? 0;
+        row.push(marks);
+      }
+
+      csv += row.map((c) => this.escapeCsvCell(c)).join(',') + '\n';
+    }
+
+    return csv;
+  }
+
+  async listAttemptsForTeacher(teacherUserId: string, assessmentId: string) {
+    const assessment = await this.prisma.assessment.findUnique({
+      where: {
+        assessmentId,
+        teacherId: teacherUserId,
+      },
+      include: {
+        questions: { select: { id: true } },
+      },
+    });
+
+    if (!assessment) {
+      throw new NotFoundException('Assessment not found');
+    }
+
+    const attempts = await this.prisma.assessmentAttempt.findMany({
+      where: { assessmentId: assessment.id },
+      include: {
+        student: { include: { user: true } },
+        answers: { include: { evaluation: true } },
+      },
+      orderBy: { submittedAt: 'desc' },
+    });
+
+    return attempts.map((attempt) => {
+      let derivedStatus = 'IN_PROGRESS';
+
+      if (attempt.publishedAt) {
+        derivedStatus = 'PUBLISHED';
+      } else if (attempt.status === AssessmentAttemptStatus.IN_PROGRESS) {
+        derivedStatus = 'IN_PROGRESS';
+      } else if (attempt.status === AssessmentAttemptStatus.SUBMITTED) {
+        const evaluations = attempt.answers
+          .map((a) => a.evaluation)
+          .filter((e) => e != null);
+        
+        const hasFailed = evaluations.some((e) => e!.status === EvaluationStatus.FAILED);
+        const hasGrading = evaluations.some(
+          (e) => e!.status === EvaluationStatus.PENDING || e!.status === EvaluationStatus.EVALUATING,
+        );
+        const hasWaiting = evaluations.some(
+          (e) => e!.status === EvaluationStatus.WAITING_FOR_REVIEW,
+        );
+
+        if (hasFailed) {
+          derivedStatus = 'FAILED';
+        } else if (hasGrading) {
+          derivedStatus = 'GRADING';
+        } else if (hasWaiting) {
+          derivedStatus = 'WAITING_FOR_REVIEW';
+        } else if (
+          evaluations.length === attempt.answers.length && 
+          evaluations.every((e) => e!.status === EvaluationStatus.APPROVED)
+        ) {
+          // Note: In phase 14 publication is blocked if any submitted answer has no evaluation.
+          // By ensuring evaluations.length === attempt.answers.length we know there are no missing evaluations.
+          derivedStatus = 'READY_TO_PUBLISH';
+        } else {
+          // Fallback if some answers somehow have no evaluation yet
+          derivedStatus = 'GRADING';
+        }
+      }
+
+      return {
+        attemptId: attempt.attemptId,
+        studentName: `${attempt.student.user.firstName} ${attempt.student.user.lastName}`.trim(),
+        derivedStatus,
+        submittedAt: attempt.submittedAt,
+        publishedAt: attempt.publishedAt,
+        finalMarks: attempt.finalMarks,
+        maximumMarks: attempt.maximumMarks,
+      };
+    });
+  }
+
+  async bulkPublishAttemptResults(teacherUserId: string, assessmentId: string, attemptIds: string[]) {
+    const assessment = await this.prisma.assessment.findUnique({
+      where: {
+        assessmentId,
+        teacherId: teacherUserId,
+      },
+    });
+
+    if (!assessment) {
+      throw new NotFoundException('Assessment not found');
+    }
+
+    const successful: string[] = [];
+    const failed: { attemptId: string; reason: string }[] = [];
+
+    for (const attemptId of attemptIds) {
+      try {
+        const attempt = await this.prisma.assessmentAttempt.findUnique({
+          where: { attemptId },
+          include: {
+            answers: {
+              include: { evaluation: true },
+            },
+            student: {
+              select: { userId: true },
+            },
+          },
+        });
+
+        if (!attempt || attempt.assessmentId !== assessment.id) {
+          failed.push({ attemptId, reason: 'Not found' });
+          continue;
+        }
+
+        if (attempt.publishedAt) {
+          failed.push({ attemptId, reason: 'Already published' });
+          continue;
+        }
+
+        if (attempt.status !== AssessmentAttemptStatus.SUBMITTED) {
+          failed.push({ attemptId, reason: 'Attempt not submitted' });
+          continue;
+        }
+
+        const missingEvaluation = attempt.answers.some((a) => !a.evaluation);
+        if (missingEvaluation) {
+          failed.push({ attemptId, reason: 'Not ready to publish (missing evaluation)' });
+          continue;
+        }
+
+        const hasNonApproved = attempt.answers.some(
+          (a) => a.evaluation!.status !== EvaluationStatus.APPROVED,
+        );
+
+        if (hasNonApproved) {
+          failed.push({ attemptId, reason: 'Not ready to publish (incomplete review)' });
+          continue;
+        }
+
+        // It is ready to publish, let's call the internal logic of publishAttemptResult
+        // or just calculate the marks right here to avoid re-fetching
+        const questions = await this.prisma.question.findMany({
+          where: { assessmentId: assessment.id },
+        });
+
+        const maximumMarks = questions.reduce((sum, q) => sum + q.marks, 0);
+        
+        let finalMarks = 0;
+        for (const q of questions) {
+          const ans = attempt.answers.find((a) => a.questionId === q.id);
+          if (ans && ans.evaluation) {
+            finalMarks += ans.evaluation.teacherMarks ?? ans.evaluation.aiMarks ?? 0;
+          }
+        }
+
+        await this.prisma.assessmentAttempt.update({
+          where: { id: attempt.id },
+          data: {
+            publishedAt: new Date(),
+            finalMarks,
+            maximumMarks,
+          },
+        });
+
+        this.eventEmitter.emit(
+          'assessment.result_published',
+          new AssessmentResultPublishedEvent(
+            attempt.attemptId,
+            attempt.student.userId,
+            assessment.title
+          )
+        );
+
+        successful.push(attemptId);
+      } catch (error) {
+        failed.push({ attemptId, reason: 'Internal error' });
+      }
+    }
+
+    return { successful, failed };
   }
 }
 

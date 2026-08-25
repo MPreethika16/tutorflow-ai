@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Param,
   Patch,
   Post,
@@ -58,7 +59,29 @@ getAssessmentStatistics(
     user.sub,
   );
 }
+  @Get(':assessmentId/analytics')
+  getAssessmentAnalytics(
+    @CurrentUser() user: JwtPayload,
+    @Param('assessmentId') assessmentId: string,
+  ) {
+    return this.assessmentsService.getAssessmentAnalytics(
+      user.sub,
+      assessmentId,
+    );
+  }
 
+  @Get(':assessmentId/export.csv')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename="results.csv"')
+  exportResults(
+    @CurrentUser() user: JwtPayload,
+    @Param('assessmentId') assessmentId: string,
+  ) {
+    return this.assessmentsService.exportResultsForTeacher(
+      user.sub,
+      assessmentId,
+    );
+  }
 
   @Get(':assessmentId')
   getAssessment(
@@ -157,6 +180,30 @@ archiveAssessment(
       user.sub,
       assessmentId,
       attemptId,
+    );
+  }
+
+  @Get(':assessmentId/attempts')
+  listAttempts(
+    @CurrentUser() user: JwtPayload,
+    @Param('assessmentId') assessmentId: string,
+  ) {
+    return this.assessmentsService.listAttemptsForTeacher(
+      user.sub,
+      assessmentId,
+    );
+  }
+
+  @Post(':assessmentId/results/publish')
+  bulkPublishAttemptResults(
+    @CurrentUser() user: JwtPayload,
+    @Param('assessmentId') assessmentId: string,
+    @Body('attemptIds') attemptIds: string[],
+  ) {
+    return this.assessmentsService.bulkPublishAttemptResults(
+      user.sub,
+      assessmentId,
+      attemptIds || [],
     );
   }
 }

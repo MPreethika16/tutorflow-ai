@@ -8,6 +8,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import {
   AssessmentAttemptStatus,
   AssessmentStatus,
+  AssessmentKind,
   QuestionType,
 } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -25,6 +26,7 @@ describe('StudentAssessmentsService', () => {
       findMany: jest.fn(),
     },
     assessmentAttempt: {
+      findMany: jest.fn(),
       findUnique: jest.fn(),
       findFirst: jest.fn(),
       create: jest.fn(),
@@ -809,6 +811,127 @@ describe('StudentAssessmentsService', () => {
           },
         ],
       });
+    });
+  });
+
+  describe('getAttemptHistoryForStudent', () => {
+    it('returns empty list when there are no attempts', async () => {
+      prismaMock.assessmentAttempt.findMany.mockResolvedValue([]);
+      const result = await service.getAttemptHistoryForStudent('student-1');
+      expect(result.attempts).toEqual([]);
+    });
+
+    it('maps IN_PROGRESS attempt correctly and masks marks', async () => {
+      prismaMock.assessmentAttempt.findMany.mockResolvedValue([
+        {
+          attemptId: 'ATT-1',
+          status: AssessmentAttemptStatus.IN_PROGRESS,
+          startedAt: new Date('2026-08-20T10:00:00Z'),
+          submittedAt: null,
+          publishedAt: null,
+          finalMarks: 50, // Should be masked
+          maximumMarks: 100, // Should be masked
+          assessment: {
+            assessmentId: 'ASM-1',
+            title: 'Math Test',
+            subject: 'Math',
+            kind: AssessmentKind.TEST,
+          },
+        }
+      ]);
+
+      const result = await service.getAttemptHistoryForStudent('student-1');
+      expect(result.attempts[0]).toEqual({
+        assessmentId: 'ASM-1',
+        attemptId: 'ATT-1',
+        title: 'Math Test',
+        subject: 'Math',
+        assessmentKind: AssessmentKind.TEST,
+        studentStatus: 'IN_PROGRESS',
+        startedAt: expect.any(Date),
+        submittedAt: null,
+        publishedAt: null,
+        finalMarks: null,
+        maximumMarks: null,
+        percentage: null,
+      });
+    });
+
+    it('maps SUBMITTED but unpublished attempt to BEING_GRADED and masks marks', async () => {
+      prismaMock.assessmentAttempt.findMany.mockResolvedValue([
+        {
+          attemptId: 'ATT-2',
+          status: AssessmentAttemptStatus.SUBMITTED,
+          startedAt: new Date('2026-08-20T10:00:00Z'),
+          submittedAt: new Date('2026-08-20T10:30:00Z'),
+          publishedAt: null,
+          finalMarks: 50, // Should be masked
+          maximumMarks: 100, // Should be masked
+          assessment: {
+            assessmentId: 'ASM-2',
+            title: 'Science Quiz',
+            subject: 'Science',
+            kind: AssessmentKind.PRACTICE,
+          },
+        }
+      ]);
+
+      const result = await service.getAttemptHistoryForStudent('student-1');
+      expect(result.attempts[0].studentStatus).toBe('BEING_GRADED');
+      expect(result.attempts[0].finalMarks).toBeNull();
+      expect(result.attempts[0].maximumMarks).toBeNull();
+      expect(result.attempts[0].percentage).toBeNull();
+    });
+
+    it('maps published attempt to RESULT_READY and shows marks and percentage', async () => {
+      prismaMock.assessmentAttempt.findMany.mockResolvedValue([
+        {
+          attemptId: 'ATT-3',
+          status: AssessmentAttemptStatus.SUBMITTED,
+          startedAt: new Date('2026-08-20T10:00:00Z'),
+          submittedAt: new Date('2026-08-20T10:30:00Z'),
+          publishedAt: new Date('2026-08-21T10:00:00Z'),
+          finalMarks: 8,
+          maximumMarks: 10,
+          assessment: {
+            assessmentId: 'ASM-3',
+            title: 'History Test',
+            subject: 'History',
+            kind: AssessmentKind.TEST,
+          },
+        }
+      ]);
+
+      const result = await service.getAttemptHistoryForStudent('student-1');
+      expect(result.attempts[0].studentStatus).toBe('RESULT_READY');
+      expect(result.attempts[0].finalMarks).toBe(8);
+      expect(result.attempts[0].maximumMarks).toBe(10);
+      expect(result.attempts[0].percentage).toBe(80);
+    });
+
+    it('handles zero maximum marks securely', async () => {
+      prismaMock.assessmentAttempt.findMany.mockResolvedValue([
+        {
+          attemptId: 'ATT-4',
+          status: AssessmentAttemptStatus.SUBMITTED,
+          startedAt: new Date('2026-08-20T10:00:00Z'),
+          submittedAt: new Date('2026-08-20T10:30:00Z'),
+          publishedAt: new Date('2026-08-21T10:00:00Z'),
+          finalMarks: 0,
+          maximumMarks: 0,
+          assessment: {
+            assessmentId: 'ASM-4',
+            title: 'Empty Test',
+            subject: 'History',
+            kind: AssessmentKind.TEST,
+          },
+        }
+      ]);
+
+      const result = await service.getAttemptHistoryForStudent('student-1');
+      expect(result.attempts[0].finalMarks).toBe(0);
+      expect(result.attempts[0].maximumMarks).toBe(0);
+      expect(result.attempts[0].percentage).toBeNull();
     });
   });
 });

@@ -69,6 +69,13 @@ export class StudentAssessmentsController {
     return result.data;
   }
 
+  @Get('attempts')
+  getAttemptHistory(
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.studentAssessmentsService.getAttemptHistoryForStudent(user.sub);
+  }
+
   @Get('attempts/:attemptId')
   getAttempt(
     @CurrentUser() user: JwtPayload,

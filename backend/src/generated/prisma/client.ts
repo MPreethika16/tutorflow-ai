@@ -79,3 +79,8 @@ export type StudentAnswer = Prisma.StudentAnswerModel
  * 
  */
 export type AnswerEvaluation = Prisma.AnswerEvaluationModel
+/**
+ * Model Notification
+ * 
+ */
+export type Notification = Prisma.NotificationModel

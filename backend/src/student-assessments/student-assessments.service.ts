@@ -178,6 +178,67 @@ export class StudentAssessmentsService {
     };
   }
 
+  async getAttemptHistoryForStudent(studentUserId: string) {
+    const attempts = await this.prisma.assessmentAttempt.findMany({
+      where: { studentUserId },
+      orderBy: { startedAt: 'desc' },
+      select: {
+        attemptId: true,
+        status: true,
+        startedAt: true,
+        submittedAt: true,
+        publishedAt: true,
+        finalMarks: true,
+        maximumMarks: true,
+        assessment: {
+          select: {
+            assessmentId: true,
+            title: true,
+            subject: true,
+            kind: true,
+          }
+        }
+      }
+    });
+
+    const mapped = attempts.map((attempt) => {
+      let studentStatus: 'IN_PROGRESS' | 'BEING_GRADED' | 'RESULT_READY';
+      if (attempt.publishedAt) {
+        studentStatus = 'RESULT_READY';
+      } else if (attempt.status === AssessmentAttemptStatus.SUBMITTED) {
+        studentStatus = 'BEING_GRADED';
+      } else {
+        studentStatus = 'IN_PROGRESS';
+      }
+
+      // Privacy: Mask results if not published
+      const finalMarks = attempt.publishedAt ? attempt.finalMarks : null;
+      const maximumMarks = attempt.publishedAt ? attempt.maximumMarks : null;
+      let percentage: number | null = null;
+      
+      if (finalMarks != null && maximumMarks != null && maximumMarks > 0) {
+        percentage = (finalMarks / maximumMarks) * 100;
+      }
+
+      return {
+        assessmentId: attempt.assessment.assessmentId,
+        attemptId: attempt.attemptId,
+        title: attempt.assessment.title,
+        subject: attempt.assessment.subject,
+        assessmentKind: attempt.assessment.kind,
+        studentStatus,
+        startedAt: attempt.startedAt,
+        submittedAt: attempt.submittedAt,
+        publishedAt: attempt.publishedAt,
+        finalMarks,
+        maximumMarks,
+        percentage,
+      };
+    });
+
+    return { attempts: mapped };
+  }
+
   async startAssessmentForStudent(studentUserId: string, assessmentId: string) {
     const student = await this.prisma.student.findUnique({
       where: {

@@ -26,4 +26,6 @@ backend/dist/
 Thumbs.db
 **/.git-backup/
 
-**/.git-backup/
+# AI Agent Workspaces & Logs
+.gemini/
+.agents/

@@ -215,7 +215,7 @@ export class StudentAssessmentsService {
       const finalMarks = attempt.publishedAt ? attempt.finalMarks : null;
       const maximumMarks = attempt.publishedAt ? attempt.maximumMarks : null;
       let percentage: number | null = null;
-      
+
       if (finalMarks != null && maximumMarks != null && maximumMarks > 0) {
         percentage = (finalMarks / maximumMarks) * 100;
       }
@@ -558,12 +558,20 @@ export class StudentAssessmentsService {
         finalMarks: true,
         maximumMarks: true,
         publishedAt: true,
+        submittedAt: true,
         assessment: {
           select: {
+            assessmentId: true,
+            title: true,
+            subject: true,
+            kind: true,
             questions: {
               select: {
                 questionId: true,
+                prompt: true,
+                type: true,
                 marks: true,
+                options: true,
                 id: true,
               },
             },
@@ -572,6 +580,9 @@ export class StudentAssessmentsService {
         answers: {
           select: {
             questionId: true,
+            textAnswer: true,
+            selectedOption: true,
+            voiceUrl: true,
             evaluation: {
               select: {
                 teacherMarks: true,
@@ -602,20 +613,48 @@ export class StudentAssessmentsService {
 
     const answers = attempt.assessment.questions.map((question) => {
       const savedAnswer = answersByQuestionId.get(question.id);
-      
+
       let marks = 0;
       let teacherFeedback: string | null = null;
+      let studentAnswer: any = null;
 
-      if (savedAnswer && savedAnswer.evaluation) {
-        marks = savedAnswer.evaluation.teacherMarks ?? savedAnswer.evaluation.aiMarks ?? 0;
-        teacherFeedback = savedAnswer.evaluation.teacherFeedback;
+      if (savedAnswer) {
+        if (savedAnswer.evaluation) {
+          marks = savedAnswer.evaluation.teacherMarks ?? savedAnswer.evaluation.aiMarks ?? 0;
+          teacherFeedback = savedAnswer.evaluation.teacherFeedback;
+        }
+
+        let selectedOptionText = null;
+        if (savedAnswer.selectedOption && question.options) {
+          try {
+            const options = typeof question.options === 'string' ? JSON.parse(question.options) : question.options;
+            if (Array.isArray(options)) {
+              const opt = options.find((o: any) => o.id === savedAnswer.selectedOption);
+              if (opt) {
+                selectedOptionText = opt.text;
+              }
+            }
+          } catch (e) {
+            // ignore JSON parse error
+          }
+        }
+
+        studentAnswer = {
+          textAnswer: savedAnswer.textAnswer,
+          selectedOptionId: savedAnswer.selectedOption,
+          selectedOptionText,
+          voiceUrl: savedAnswer.voiceUrl,
+        };
       }
 
       return {
         questionId: question.questionId,
+        prompt: question.prompt,
+        type: question.type,
         marks,
         maximumMarks: question.marks,
         teacherFeedback,
+        studentAnswer,
       };
     });
 
@@ -625,6 +664,13 @@ export class StudentAssessmentsService {
       finalMarks: attempt.finalMarks,
       maximumMarks: attempt.maximumMarks,
       publishedAt: attempt.publishedAt,
+      submittedAt: attempt.submittedAt,
+      assessment: {
+        assessmentId: attempt.assessment.assessmentId,
+        title: attempt.assessment.title,
+        subject: attempt.assessment.subject,
+        kind: attempt.assessment.kind,
+      },
       answers,
     };
   }

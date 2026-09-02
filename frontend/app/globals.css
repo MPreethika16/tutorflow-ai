@@ -1,33 +1,57 @@
 @import "tailwindcss";
 
 :root {
-  --background: #FCFBF8;
-  --foreground: #121A2F;
-  --muted-teal: #378782;
-  --muted-teal-hover: #2F736E;
-  --soft-sage: #E8EDE9;
-  --soft-sage-hover: #D8E0DA;
-  --restrained-amber: #D69E2E;
-  --neutral-border: #E2E4E7;
+  --background: #FBF9F6; /* warm paper neutral */
+  --foreground: #1A1D23; /* deep ink / graphite */
   --surface: #FFFFFF;
+  --border: #E2E4E7;
+
+  /* Primary Accent: Deep Forest / Oxford Green-Blue */
+  --primary: #11322C;
+  --primary-hover: #0D2622;
+  --primary-foreground: #FFFFFF;
+
+  /* Secondary Accent: Muted Sage / Sand */
+  --secondary: #D7DFD8;
+  --secondary-hover: #C3CEC4;
+  --secondary-foreground: #1A1D23;
+
+  /* Semantics */
+  --success: #2E6F40; /* muted emerald */
+  --success-foreground: #FFFFFF;
+  --warning: #D69E2E; /* amber */
+  --warning-foreground: #1A1D23;
+  --error: #9E2A2B; /* crimson */
+  --error-foreground: #FFFFFF;
+  --info: #3B5998; /* slate blue */
+  --info-foreground: #FFFFFF;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-primary: var(--muted-teal);
-  --color-primary-hover: var(--muted-teal-hover);
-  --color-secondary: var(--soft-sage);
-  --color-secondary-hover: var(--soft-sage-hover);
-  --color-warning: var(--restrained-amber);
-  --color-border: var(--neutral-border);
   --color-surface: var(--surface);
-  
-  --font-sans: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--font-newsreader), ui-serif, Georgia, serif;
+  --color-border: var(--border);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-info: var(--info);
+
+  --font-sans: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-fraunces), ui-serif, Georgia, serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+  font-family: var(--font-sans);
 }

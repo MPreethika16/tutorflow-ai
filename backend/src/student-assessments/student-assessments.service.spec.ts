@@ -771,14 +771,21 @@ describe('StudentAssessmentsService', () => {
         maximumMarks: 10,
         publishedAt,
         assessment: {
+          assessmentId: 'ASM-1',
+          title: 'Test',
+          subject: 'Math',
+          kind: 'PRACTICE',
           questions: [
-            { id: 'q-1', questionId: 'Q-1', marks: 5 }, // answered
-            { id: 'q-2', questionId: 'Q-2', marks: 5 }, // unanswered
+            { id: 'q-1', questionId: 'Q-1', marks: 5, prompt: 'Q1', type: 'TYPED', options: null }, // answered
+            { id: 'q-2', questionId: 'Q-2', marks: 5, prompt: 'Q2', type: 'MCQ', options: JSON.stringify([{ id: 'opt1', text: 'Option A' }]) }, // unanswered
           ],
         },
         answers: [
           {
             questionId: 'q-1',
+            textAnswer: 'my answer',
+            selectedOption: null,
+            voiceUrl: null,
             evaluation: {
               teacherMarks: null,
               aiMarks: 5,
@@ -796,18 +803,36 @@ describe('StudentAssessmentsService', () => {
         finalMarks: 5,
         maximumMarks: 10,
         publishedAt,
+        submittedAt: undefined,
+        assessment: {
+          assessmentId: 'ASM-1',
+          title: 'Test',
+          subject: 'Math',
+          kind: 'PRACTICE',
+        },
         answers: [
           {
             questionId: 'Q-1',
+            prompt: 'Q1',
+            type: 'TYPED',
             marks: 5,
             maximumMarks: 5,
             teacherFeedback: 'Great job',
+            studentAnswer: {
+              textAnswer: 'my answer',
+              selectedOptionId: null,
+              selectedOptionText: null,
+              voiceUrl: null,
+            },
           },
           {
             questionId: 'Q-2',
+            prompt: 'Q2',
+            type: 'MCQ',
             marks: 0,
             maximumMarks: 5,
             teacherFeedback: null,
+            studentAnswer: null,
           },
         ],
       });

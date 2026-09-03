@@ -3,22 +3,24 @@ import { StudentAnswerView } from "./StudentAnswerView";
 import { TeacherFeedback } from "./TeacherFeedback";
 import { Card, CardContent } from "@/components/ui/Card";
 
-interface QuestionResultCardProps {
+export interface QuestionResultAnswer {
+  questionId: string;
+  prompt: string;
+  type: string;
+  marks: number;
+  maximumMarks: number;
+  teacherFeedback: string | null;
+  studentAnswer: {
+    textAnswer: string | null;
+    selectedOptionId: string | null;
+    selectedOptionText: string | null;
+    voiceUrl: string | null;
+  } | null;
+}
+
+export interface QuestionResultCardProps {
   questionNumber: number;
-  answer: {
-    questionId: string;
-    prompt: string;
-    type: string;
-    marks: number;
-    maximumMarks: number;
-    teacherFeedback: string | null;
-    studentAnswer: {
-      textAnswer: string | null;
-      selectedOptionId: string | null;
-      selectedOptionText: string | null;
-      voiceUrl: string | null;
-    } | null;
-  };
+  answer: QuestionResultAnswer;
 }
 
 export function QuestionResultCard({ questionNumber, answer }: QuestionResultCardProps) {

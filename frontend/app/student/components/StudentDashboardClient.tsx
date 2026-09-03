@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
-import { AvailableAssessmentCard } from "./AvailableAssessmentCard";
-import { AttemptHistoryCard } from "./AttemptHistoryCard";
+import React, { useState, useRef } from "react";
+import { AvailableAssessmentCard, type AvailableAssessmentItem } from "./AvailableAssessmentCard";
+import { AttemptHistoryCard, type AttemptHistoryItem } from "./AttemptHistoryCard";
 
 interface StudentDashboardClientProps {
-  availableAssessments: any[];
-  attemptHistory: any[];
+  availableAssessments: AvailableAssessmentItem[];
+  attemptHistory: AttemptHistoryItem[];
 }
 
 export function StudentDashboardClient({ availableAssessments, attemptHistory }: StudentDashboardClientProps) {
@@ -92,7 +92,7 @@ export function StudentDashboardClient({ availableAssessments, attemptHistory }:
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-foreground font-medium text-lg">You're all caught up.</h3>
+                  <h3 className="text-foreground font-medium text-lg">You&apos;re all caught up.</h3>
                   <p className="text-secondary-foreground text-sm mt-1">There are no assessments available right now.</p>
                 </div>
               </div>

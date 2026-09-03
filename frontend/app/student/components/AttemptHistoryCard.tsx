@@ -5,21 +5,23 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
-interface AttemptHistoryCardProps {
-  attempt: {
-    assessmentId: string;
-    attemptId: string;
-    title: string;
-    subject: string;
-    assessmentKind: string;
-    studentStatus: "IN_PROGRESS" | "BEING_GRADED" | "RESULT_READY";
-    startedAt: string;
-    submittedAt: string | null;
-    publishedAt: string | null;
-    finalMarks: number | null;
-    maximumMarks: number | null;
-    percentage: number | null;
-  };
+export interface AttemptHistoryItem {
+  assessmentId: string;
+  attemptId: string;
+  title: string;
+  subject: string;
+  assessmentKind: string;
+  studentStatus: "IN_PROGRESS" | "BEING_GRADED" | "RESULT_READY";
+  startedAt: string;
+  submittedAt: string | null;
+  publishedAt: string | null;
+  finalMarks: number | null;
+  maximumMarks: number | null;
+  percentage: number | null;
+}
+
+export interface AttemptHistoryCardProps {
+  attempt: AttemptHistoryItem;
 }
 
 export function AttemptHistoryCard({ attempt }: AttemptHistoryCardProps) {

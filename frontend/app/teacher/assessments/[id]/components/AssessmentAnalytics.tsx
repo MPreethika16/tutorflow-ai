@@ -3,7 +3,7 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/Card";
 
-interface AnalyticsSummary {
+export interface AnalyticsSummary {
   totalAttempts: number;
   submittedAttempts: number;
   publishedResults: number;
@@ -13,7 +13,7 @@ interface AnalyticsSummary {
   lowestMarks: number | null;
 }
 
-interface QuestionAnalytics {
+export interface QuestionAnalytics {
   questionId: string;
   prompt: string;
   maximumMarks: number;
@@ -23,13 +23,15 @@ interface QuestionAnalytics {
   averagePercentage: number | null;
 }
 
-interface AssessmentAnalyticsProps {
+export interface AssessmentAnalyticsData {
   assessmentId: string;
-  analytics: {
-    assessmentId: string;
-    summary: AnalyticsSummary;
-    questions: QuestionAnalytics[];
-  };
+  summary: AnalyticsSummary;
+  questions: QuestionAnalytics[];
+}
+
+export interface AssessmentAnalyticsProps {
+  assessmentId: string;
+  analytics: AssessmentAnalyticsData;
 }
 
 function QuestionPerformanceMeter({ question }: { question: QuestionAnalytics }) {

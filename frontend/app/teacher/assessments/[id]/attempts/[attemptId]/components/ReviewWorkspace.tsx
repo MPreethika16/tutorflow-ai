@@ -1,11 +1,62 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/Button";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { TeacherOverrideForm } from "./TeacherOverrideForm";
 
-export function ReviewWorkspace({ attempt, answers, summary, assessmentId }: { attempt: any, answers: any[], summary: any, assessmentId: string }) {
+export interface ReviewQuestion {
+  prompt: string;
+  marks: number;
+  type: string;
+  modelAnswer?: string | null;
+  gradingInstructions?: string | null;
+  options?: Array<{ id: string; text: string }> | null;
+  correctOption?: string | null;
+}
+
+export interface ReviewEvaluation {
+  status: "PENDING" | "EVALUATING" | "WAITING_FOR_REVIEW" | "APPROVED" | "FAILED" | string;
+  aiMarks?: number | null;
+  aiFeedback?: string | null;
+  aiConfidence?: number | null;
+  teacherMarks?: number | null;
+  teacherFeedback?: string | null;
+  reviewCompletedAt?: string | null;
+  failureReason?: string | null;
+}
+
+export interface ReviewAnswer {
+  id: string;
+  selectedOption?: string | null;
+  textAnswer?: string | null;
+  voiceUrl?: string | null;
+  question: ReviewQuestion;
+  evaluation?: ReviewEvaluation | null;
+}
+
+export interface ReviewAttemptSummary {
+  totalQuestions?: number;
+  gradedCount?: number;
+  needsReviewCount?: number;
+  failedCount?: number;
+  reviewComplete?: boolean;
+}
+
+export interface ReviewAttemptData {
+  attemptId: string;
+  studentName?: string;
+  submittedAt?: string | null;
+  status?: string;
+}
+
+export interface ReviewWorkspaceProps {
+  attempt: ReviewAttemptData;
+  answers: ReviewAnswer[];
+  summary?: ReviewAttemptSummary;
+  assessmentId: string;
+}
+
+export function ReviewWorkspace({ attempt, answers, assessmentId }: ReviewWorkspaceProps) {
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(answers[0]?.id || null);
 
   // Intersection Observer for active question highlighting
@@ -70,7 +121,7 @@ export function ReviewWorkspace({ attempt, answers, summary, assessmentId }: { a
   );
 }
 
-function QuestionReviewCard({ index, answer, assessmentId, attemptId }: { index: number, answer: any, assessmentId: string, attemptId: string }) {
+function QuestionReviewCard({ index, answer, assessmentId, attemptId }: { index: number, answer: ReviewAnswer, assessmentId: string, attemptId: string }) {
   const { question, evaluation } = answer;
   const isApproved = evaluation?.status === "APPROVED";
   const isFailed = evaluation?.status === "FAILED";
@@ -205,8 +256,8 @@ function QuestionReviewCard({ index, answer, assessmentId, attemptId }: { index:
                     attemptId={attemptId}
                     answerId={answer.id}
                     maximumMarks={question.marks}
-                    initialMarks={evaluation.teacherMarks ?? evaluation.aiMarks}
-                    initialFeedback={evaluation.teacherFeedback ?? evaluation.aiFeedback}
+                    initialMarks={evaluation.teacherMarks ?? evaluation.aiMarks ?? null}
+                    initialFeedback={evaluation.teacherFeedback ?? evaluation.aiFeedback ?? null}
                   />
                 )}
               </CardContent>

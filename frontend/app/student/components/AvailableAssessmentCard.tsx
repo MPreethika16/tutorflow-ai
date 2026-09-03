@@ -6,18 +6,20 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { startAssessmentAction } from "../actions";
 
-interface AvailableAssessmentCardProps {
-  assessment: {
-    assessmentId: string;
-    title: string;
-    subject: string;
-    board: string | null;
-    grade: string | null;
-    durationMinutes: number;
-    maximumMarks: number;
-    attemptStatus: "AVAILABLE" | "IN_PROGRESS";
-    attemptId: string | null;
-  };
+export interface AvailableAssessmentItem {
+  assessmentId: string;
+  title: string;
+  subject: string;
+  board: string | null;
+  grade: string | null;
+  durationMinutes: number;
+  maximumMarks: number;
+  attemptStatus: "AVAILABLE" | "IN_PROGRESS";
+  attemptId: string | null;
+}
+
+export interface AvailableAssessmentCardProps {
+  assessment: AvailableAssessmentItem;
 }
 
 export function AvailableAssessmentCard({ assessment }: AvailableAssessmentCardProps) {

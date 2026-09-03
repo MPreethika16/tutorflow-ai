@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { AttemptListClient } from "./AttemptListClient";
-import { AssessmentAnalytics } from "./AssessmentAnalytics";
+import { AttemptListClient, type TeacherAttemptListItem } from "./AttemptListClient";
+import { AssessmentAnalytics, type AssessmentAnalyticsData } from "./AssessmentAnalytics";
 import { ExportCsvAction } from "./ExportCsvAction";
 
 interface AssessmentTabsProps {
   assessmentId: string;
-  attempts: any[];
-  analytics: any;
+  attempts: TeacherAttemptListItem[];
+  analytics: AssessmentAnalyticsData;
 }
 
 export function AssessmentTabs({ assessmentId, attempts, analytics }: AssessmentTabsProps) {

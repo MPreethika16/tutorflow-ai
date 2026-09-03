@@ -20,16 +20,15 @@ interface StudentNotificationBellProps {
 
 export function StudentNotificationBell({ initialNotifications }: StudentNotificationBellProps) {
   const router = useRouter();
-  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
+  const [readIds, setReadIds] = useState<Set<string>>(() => new Set());
   const [isOpen, setIsOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const notifications = initialNotifications.map(n =>
+    readIds.has(n.id) ? { ...n, read: true } : n
+  );
 
-  useEffect(() => {
-    // Only update local state if initialNotifications actually changes from server
-    setNotifications(initialNotifications);
-  }, [initialNotifications]);
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -52,7 +51,7 @@ export function StudentNotificationBell({ initialNotifications }: StudentNotific
 
   const handleNotificationClick = async (n: Notification) => {
     if (!n.read) {
-      setNotifications(prev => prev.map(notif => notif.id === n.id ? { ...notif, read: true } : notif));
+      setReadIds(prev => new Set(prev).add(n.id));
       // Fire action in background
       markNotificationReadAction(n.id);
     }

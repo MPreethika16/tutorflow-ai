@@ -6,9 +6,18 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { SinglePublishAction } from "./SinglePublishAction";
 import { BulkPublishActionBar } from "./BulkPublishActionBar";
 
+export interface TeacherAttemptListItem {
+  attemptId: string;
+  studentName: string;
+  derivedStatus: string;
+  submittedAt: string | null;
+  finalMarks: number | null;
+  maximumMarks: number;
+}
+
 interface AttemptListClientProps {
   assessmentId: string;
-  attempts: any[];
+  attempts: TeacherAttemptListItem[];
 }
 
 export function AttemptListClient({ assessmentId, attempts }: AttemptListClientProps) {
@@ -76,7 +85,7 @@ export function AttemptListClient({ assessmentId, attempts }: AttemptListClientP
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {attempts.map((attempt: any) => {
+            {attempts.map((attempt: TeacherAttemptListItem) => {
               const isSelectable = attempt.derivedStatus === 'READY_TO_PUBLISH';
               const isSelected = selectedAttemptIds.has(attempt.attemptId);
 
@@ -161,7 +170,7 @@ export function AttemptListClient({ assessmentId, attempts }: AttemptListClientP
           </div>
         )}
 
-        {attempts.map((attempt: any) => {
+        {attempts.map((attempt: TeacherAttemptListItem) => {
           const isSelectable = attempt.derivedStatus === 'READY_TO_PUBLISH';
           const isSelected = selectedAttemptIds.has(attempt.attemptId);
 

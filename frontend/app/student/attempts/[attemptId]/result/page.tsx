@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { ResultSummary } from "./components/ResultSummary";
-import { QuestionResultCard } from "./components/QuestionResultCard";
+import { QuestionResultCard, type QuestionResultAnswer } from "./components/QuestionResultCard";
 
 async function fetchResultWithAuth(attemptId: string) {
   const cookieStore = await cookies();
@@ -107,7 +107,7 @@ export default async function StudentResultPage({
 
       <section aria-label="Question Review">
         <div className="space-y-6">
-          {answers.map((answer: any, index: number) => (
+          {answers.map((answer: QuestionResultAnswer, index: number) => (
             <QuestionResultCard
               key={answer.questionId}
               questionNumber={index + 1}

@@ -92,6 +92,10 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "<rootDir>/test/ai/evaluations/"
+    ],
     "testEnvironment": "node",
     "moduleNameMapper": {
       "^(\\.{1,2}/.*)\\.js$": "$1"

@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { AssessmentTabs } from "./components/AssessmentTabs";
+import type { TeacherAttemptListItem } from "./components/AttemptListClient";
 
 // Helper to fetch data with auth headers
 async function fetchWithAuth(url: string) {
@@ -61,10 +62,9 @@ export default async function AssessmentDetailPage({ params }: { params: { id: s
 
   // Compute operational summary metrics without making additional requests
   const totalAttempts = attempts.length;
-  const needsReview = attempts.filter((a: any) => a.derivedStatus === 'WAITING_FOR_REVIEW' || a.derivedStatus === 'FAILED').length;
-  const readyToPublish = attempts.filter((a: any) => a.derivedStatus === 'READY_TO_PUBLISH').length;
-  const published = attempts.filter((a: any) => a.derivedStatus === 'PUBLISHED').length;
-  const grading = attempts.filter((a: any) => a.derivedStatus === 'GRADING').length;
+  const needsReview = attempts.filter((a: TeacherAttemptListItem) => a.derivedStatus === 'WAITING_FOR_REVIEW' || a.derivedStatus === 'FAILED').length;
+  const readyToPublish = attempts.filter((a: TeacherAttemptListItem) => a.derivedStatus === 'READY_TO_PUBLISH').length;
+  const published = attempts.filter((a: TeacherAttemptListItem) => a.derivedStatus === 'PUBLISHED').length;
 
   return (
     <main className="max-w-6xl mx-auto p-8 space-y-8">

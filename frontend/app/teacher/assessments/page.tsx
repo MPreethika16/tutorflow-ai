@@ -1,9 +1,18 @@
 import * as React from "react";
 import { cookies } from "next/headers";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/Card";
+import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
 import { StatusBadge } from "@/components/ui/StatusBadge";
+
+interface TeacherAssessmentItem {
+  id: string;
+  title: string;
+  subject: string;
+  description?: string | null;
+  grade: string;
+  status: string;
+}
 
 // Fetch assessments from backend
 async function getAssessments() {
@@ -47,7 +56,7 @@ export default async function AssessmentsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {assessments.map((a: any) => (
+          {assessments.map((a: TeacherAssessmentItem) => (
             <Card key={a.id} className="transition-transform motion-safe:hover:-translate-y-1 hover:shadow-md duration-200">
               <CardHeader>
                 <div className="flex justify-between items-start">

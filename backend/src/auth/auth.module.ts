@@ -29,11 +29,21 @@ import { RolesGuard } from './guards/roles.guard';
           );
         }
 
-        const expiresIn =
-          configService.get<number>(
-            'JWT_ACCESS_EXPIRES_IN_SECONDS',
-            900,
-          );
+        const rawExpiresIn = configService.get<string | number>(
+          'JWT_ACCESS_EXPIRES_IN_SECONDS',
+        );
+        let expiresIn = 900;
+        if (rawExpiresIn) {
+          expiresIn = Number(rawExpiresIn) || 900;
+        } else {
+          const fallback = configService.get<string>('JWT_ACCESS_EXPIRES_IN');
+          if (fallback) {
+            if (fallback.endsWith('m')) expiresIn = parseInt(fallback, 10) * 60;
+            else if (fallback.endsWith('s')) expiresIn = parseInt(fallback, 10);
+            else if (fallback.endsWith('h')) expiresIn = parseInt(fallback, 10) * 3600;
+            else expiresIn = Number(fallback) || 900;
+          }
+        }
 
         return {
           secret,

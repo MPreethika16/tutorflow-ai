@@ -1,5 +1,5 @@
 import * as React from "react";
-import { cookies } from "next/headers";
+import { authenticatedFetch } from "@/lib/auth";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
@@ -16,22 +16,11 @@ interface TeacherAssessmentItem {
 
 // Fetch assessments from backend
 async function getAssessments() {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-
-  // Forward cookies to the backend for auth
-  const cookieStore = await cookies();
-  const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ');
-
   try {
-    const res = await fetch(`${apiUrl}/teacher/assessments`, {
-      cache: 'no-store',
-      headers: {
-        'Cookie': cookieHeader
-      }
-    });
+    const res = await authenticatedFetch('/teacher/assessments');
     if (!res.ok) return [];
     return await res.json();
-  } catch (error) {
+  } catch {
     return [];
   }
 }

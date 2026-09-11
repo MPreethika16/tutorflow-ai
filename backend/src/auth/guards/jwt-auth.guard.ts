@@ -20,7 +20,7 @@ export class JwtAuthGuard implements CanActivate {
     const request =
       context.switchToHttp().getRequest<AuthenticatedRequest>();
 
-    const token = this.extractBearerToken(request);
+    const token = this.extractToken(request);
 
     if (!token) {
       throw new UnauthorizedException('Access token is required');
@@ -38,15 +38,45 @@ export class JwtAuthGuard implements CanActivate {
     }
   }
 
-  private extractBearerToken(request: Request): string | undefined {
+  private extractToken(request: Request): string | undefined {
+    // 1. Authorization: Bearer <token> (precedence 1)
     const authorization = request.headers.authorization;
-
-    if (!authorization) {
-      return undefined;
+    if (authorization) {
+      const [type, token] = authorization.split(' ');
+      if (type === 'Bearer' && token) {
+        return token;
+      }
     }
 
-    const [type, token] = authorization.split(' ');
+    // 2. access_token cookie (precedence 2)
+    const cookieHeader = request.headers.cookie;
+    if (cookieHeader) {
+      const token = this.extractCookie(cookieHeader, 'access_token');
+      if (token) {
+        return token;
+      }
+    }
 
-    return type === 'Bearer' && token ? token : undefined;
+    return undefined;
+  }
+
+  private extractCookie(cookieHeader: string, name: string): string | undefined {
+    const cookies = cookieHeader.split(';');
+    for (const cookie of cookies) {
+      const trimmed = cookie.trim();
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx === -1) continue;
+      const rawKey = trimmed.slice(0, eqIdx).trim();
+      if (rawKey === name) {
+        const rawValue = trimmed.slice(eqIdx + 1).trim();
+        if (!rawValue) return undefined;
+        try {
+          return decodeURIComponent(rawValue);
+        } catch {
+          return rawValue;
+        }
+      }
+    }
+    return undefined;
   }
 }

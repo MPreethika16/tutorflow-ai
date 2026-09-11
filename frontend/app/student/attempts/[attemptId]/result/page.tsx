@@ -1,22 +1,13 @@
 import React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { cookies } from "next/headers";
+import { authenticatedFetch } from "@/lib/auth";
 import { ResultSummary } from "./components/ResultSummary";
 import { QuestionResultCard, type QuestionResultAnswer } from "./components/QuestionResultCard";
 
 async function fetchResultWithAuth(attemptId: string) {
-  const cookieStore = await cookies();
-  const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ');
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-
   try {
-    const res = await fetch(`${apiUrl}/student/attempts/${attemptId}/result`, {
-      headers: {
-        'Cookie': cookieHeader,
-        'Cache-Control': 'no-cache',
-      },
-    });
+    const res = await authenticatedFetch(`/student/attempts/${attemptId}/result`);
 
     if (!res.ok) {
       if (res.status === 404) return { error: 'NOT_FOUND' };

@@ -1,7 +1,7 @@
 import * as React from "react";
-import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { authenticatedFetch } from "@/lib/auth";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -9,35 +9,32 @@ import { AssessmentTabs } from "./components/AssessmentTabs";
 import type { TeacherAttemptListItem } from "./components/AttemptListClient";
 
 // Helper to fetch data with auth headers
-async function fetchWithAuth(url: string) {
-  const cookieStore = await cookies();
-  const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ');
+async function fetchWithAuth(endpoint: string) {
+  try {
+    const res = await authenticatedFetch(endpoint);
 
-  const res = await fetch(url, {
-    cache: 'no-store',
-    headers: { 'Cookie': cookieHeader }
-  });
+    if (res.status === 404 || res.status === 403) {
+      return { error: 'NOT_FOUND', status: res.status };
+    }
 
-  if (res.status === 404 || res.status === 403) {
-    return { error: 'NOT_FOUND', status: res.status };
+    if (!res.ok) {
+      return { error: 'API_ERROR', status: res.status };
+    }
+
+    const data = await res.json();
+    return { data };
+  } catch {
+    return { error: 'API_ERROR', status: 500 };
   }
-
-  if (!res.ok) {
-    return { error: 'API_ERROR', status: res.status };
-  }
-
-  const data = await res.json();
-  return { data };
 }
 
 export default async function AssessmentDetailPage({ params }: { params: { id: string } }) {
   const { id } = await params; // Note: In Next 15+ params is a Promise
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
   const [assessmentRes, attemptsRes, analyticsRes] = await Promise.all([
-    fetchWithAuth(`${apiUrl}/assessments/${id}`),
-    fetchWithAuth(`${apiUrl}/assessments/${id}/attempts`),
-    fetchWithAuth(`${apiUrl}/assessments/${id}/analytics`)
+    fetchWithAuth(`/assessments/${id}`),
+    fetchWithAuth(`/assessments/${id}/attempts`),
+    fetchWithAuth(`/assessments/${id}/analytics`)
   ]);
 
   if (assessmentRes.error === 'NOT_FOUND') {

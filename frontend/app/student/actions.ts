@@ -1,18 +1,11 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { authenticatedFetch } from "@/lib/auth";
 
 export async function startAssessmentAction(assessmentId: string) {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-  const cookieStore = await cookies();
-  const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join("; ");
-
-  const response = await fetch(`${apiUrl}/student/assessments/${assessmentId}/start`, {
+  const response = await authenticatedFetch(`/student/assessments/${assessmentId}/start`, {
     method: "POST",
-    headers: {
-      "Cookie": cookieHeader,
-    },
   });
 
   if (!response.ok) {
@@ -25,16 +18,9 @@ export async function startAssessmentAction(assessmentId: string) {
 }
 
 export async function markNotificationReadAction(notificationId: string) {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-  const cookieStore = await cookies();
-  const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join("; ");
-
   try {
-    const response = await fetch(`${apiUrl}/notifications/${notificationId}/read`, {
+    const response = await authenticatedFetch(`/notifications/${notificationId}/read`, {
       method: "PATCH",
-      headers: {
-        "Cookie": cookieHeader,
-      },
     });
     // We intentionally don't throw if it fails, as per requirements:
     // "do not display a disruptive error. the notification may remain unread until the next refresh"

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { authenticatedFetch } from "@/lib/auth";
 
 export async function GET(
   request: NextRequest,
@@ -8,15 +8,8 @@ export async function GET(
   const { id } = await params;
 
   try {
-    const cookieStore = await cookies();
-    const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ');
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-
-    const res = await fetch(`${apiUrl}/assessments/${id}/export.csv`, {
+    const res = await authenticatedFetch(`/assessments/${id}/export.csv`, {
       method: "GET",
-      headers: {
-        "Cookie": cookieHeader,
-      }
     });
 
     if (!res.ok) {

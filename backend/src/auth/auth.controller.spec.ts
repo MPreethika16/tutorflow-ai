@@ -14,6 +14,9 @@ describe('AuthController', () => {
           provide: AuthService,
           useValue: {
             login: jest.fn(),
+            changePassword: jest.fn(),
+            getMe: jest.fn(),
+            getAccessTokenExpiresInSeconds: jest.fn().mockReturnValue(900),
           },
         },
         {

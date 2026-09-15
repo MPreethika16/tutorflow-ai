@@ -8,7 +8,9 @@ import {
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { MustChangePasswordGuard } from './guards/must-change-password.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { resolveJwtExpiresInSeconds } from './utils/jwt-config.util';
 
 @Module({
   imports: [
@@ -29,11 +31,7 @@ import { RolesGuard } from './guards/roles.guard';
           );
         }
 
-        const expiresIn =
-          configService.get<number>(
-            'JWT_ACCESS_EXPIRES_IN_SECONDS',
-            900,
-          );
+        const expiresIn = resolveJwtExpiresInSeconds(configService);
 
         return {
           secret,
@@ -53,12 +51,14 @@ import { RolesGuard } from './guards/roles.guard';
     AuthService,
     JwtAuthGuard,
     RolesGuard,
+    MustChangePasswordGuard,
   ],
 
   exports: [
     JwtModule,
     JwtAuthGuard,
     RolesGuard,
+    MustChangePasswordGuard,
   ],
 })
 export class AuthModule {}

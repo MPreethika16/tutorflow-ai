@@ -1,7 +1,7 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { authenticatedFetch } from "@/lib/auth";
 
 export async function approveAnswer(
   assessmentId: string,
@@ -10,21 +10,19 @@ export async function approveAnswer(
   teacherMarks?: number | null,
   teacherFeedback?: string | null
 ) {
-  const cookieStore = await cookies();
-  const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ');
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-
-  const res = await fetch(`${apiUrl}/assessments/${assessmentId}/attempts/${attemptId}/answers/${answerId}/review`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      "Cookie": cookieHeader,
+  const res = await authenticatedFetch(
+    `/assessments/${assessmentId}/attempts/${attemptId}/answers/${answerId}/review`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        teacherMarks,
+        teacherFeedback,
+      }),
     },
-    body: JSON.stringify({
-      teacherMarks,
-      teacherFeedback
-    })
-  });
+  );
 
   if (!res.ok) {
     // Return explicit error objects based on status codes
@@ -51,16 +49,12 @@ export async function publishAttempt(
   assessmentId: string,
   attemptId: string
 ) {
-  const cookieStore = await cookies();
-  const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ');
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-
-  const res = await fetch(`${apiUrl}/assessments/${assessmentId}/attempts/${attemptId}/publish`, {
-    method: "POST",
-    headers: {
-      "Cookie": cookieHeader,
-    }
-  });
+  const res = await authenticatedFetch(
+    `/assessments/${assessmentId}/attempts/${attemptId}/publish`,
+    {
+      method: "POST",
+    },
+  );
 
   if (!res.ok) {
     if (res.status === 409) {

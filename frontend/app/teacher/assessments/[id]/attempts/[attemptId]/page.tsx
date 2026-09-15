@@ -1,41 +1,38 @@
 import * as React from "react";
-import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { authenticatedFetch } from "@/lib/auth";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ReviewWorkspace } from "./components/ReviewWorkspace";
 import { PublishedResultSummary } from "./components/PublishedResultSummary";
 import { SinglePublishAction } from "../../components/SinglePublishAction";
 
 // Helper to fetch data with auth headers
-async function fetchWithAuth(url: string) {
-  const cookieStore = await cookies();
-  const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ');
+async function fetchWithAuth(endpoint: string) {
+  try {
+    const res = await authenticatedFetch(endpoint);
 
-  const res = await fetch(url, {
-    cache: 'no-store',
-    headers: { 'Cookie': cookieHeader }
-  });
+    if (res.status === 404 || res.status === 403) {
+      return { error: 'NOT_FOUND', status: res.status };
+    }
 
-  if (res.status === 404 || res.status === 403) {
-    return { error: 'NOT_FOUND', status: res.status };
+    if (!res.ok) {
+      return { error: 'API_ERROR', status: res.status };
+    }
+
+    const data = await res.json();
+    return { data };
+  } catch {
+    return { error: 'API_ERROR', status: 500 };
   }
-
-  if (!res.ok) {
-    return { error: 'API_ERROR', status: res.status };
-  }
-
-  const data = await res.json();
-  return { data };
 }
 
 export default async function TeacherAttemptReviewPage({ params }: { params: { id: string, attemptId: string } }) {
   const { id, attemptId } = await params;
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
   // 1. Fetch the attempt data
   // GET /assessments/:assessmentId/attempts/:attemptId/review
-  const reviewRes = await fetchWithAuth(`${apiUrl}/assessments/${id}/attempts/${attemptId}/review`);
+  const reviewRes = await fetchWithAuth(`/assessments/${id}/attempts/${attemptId}/review`);
 
   if (reviewRes.error === 'NOT_FOUND') {
     notFound();

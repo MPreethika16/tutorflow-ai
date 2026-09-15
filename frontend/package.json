@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --import ./tests/register.mjs --experimental-strip-types --test tests/auth.test.ts tests/routing-protection.test.ts"
   },
   "dependencies": {
     "next": "16.2.12",

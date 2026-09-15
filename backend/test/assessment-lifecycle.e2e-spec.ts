@@ -50,7 +50,7 @@ describe('Assessment Lifecycle (e2e)', () => {
         firstName: 'S',
         lastName: 'S',
         role: UserRole.STUDENT,
-        student: { create: { studentId: `STU-${runId}`, grade: '10', board: 'CBSE', teacherId } },
+        student: { create: { studentId: `STU-${runId}`, grade: '10', board: 'CBSE', teacherId, mustChangePassword: false } },
       },
     });
     studentId = studentUser.id;

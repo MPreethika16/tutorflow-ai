@@ -1,18 +1,9 @@
-import { notFound } from "next/navigation";
-import { cookies } from "next/headers";
 import { StudentDashboardClient } from "./components/StudentDashboardClient";
+import { authenticatedFetch } from "@/lib/auth";
 
-async function fetchWithAuth(url: string) {
-  const cookieStore = await cookies();
-  const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ');
-
+async function fetchWithAuth(endpoint: string) {
   try {
-    const res = await fetch(url, {
-      headers: {
-        'Cookie': cookieHeader,
-        'Cache-Control': 'no-cache', // Ensure fresh data
-      },
-    });
+    const res = await authenticatedFetch(endpoint);
 
     if (!res.ok) {
       if (res.status === 401 || res.status === 403) {
@@ -27,17 +18,15 @@ async function fetchWithAuth(url: string) {
     const data = await res.json();
     return { data };
   } catch (error) {
-    console.error(`Fetch error for ${url}:`, error);
+    console.error(`Fetch error for ${endpoint}:`, error);
     return { error: 'NETWORK_ERROR' };
   }
 }
 
 export default async function StudentDashboardPage() {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-
   const [assessmentsRes, attemptsRes] = await Promise.all([
-    fetchWithAuth(`${apiUrl}/student/assessments`),
-    fetchWithAuth(`${apiUrl}/student/attempts`)
+    fetchWithAuth('/student/assessments'),
+    fetchWithAuth('/student/attempts')
   ]);
 
   if (assessmentsRes.error === 'UNAUTHORIZED' || attemptsRes.error === 'UNAUTHORIZED') {

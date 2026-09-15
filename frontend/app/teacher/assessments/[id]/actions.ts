@@ -1,21 +1,16 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { authenticatedFetch } from "@/lib/auth";
 
 export async function bulkPublishAttempts(
   assessmentId: string,
   attemptIds: string[]
 ) {
-  const cookieStore = await cookies();
-  const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ');
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-
-  const res = await fetch(`${apiUrl}/assessments/${assessmentId}/results/publish`, {
+  const res = await authenticatedFetch(`/assessments/${assessmentId}/results/publish`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Cookie": cookieHeader,
     },
     body: JSON.stringify({ attemptIds }),
   });

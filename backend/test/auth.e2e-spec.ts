@@ -255,9 +255,37 @@ describe('Auth API (e2e)', () => {
 
       expect(loginRes.status).toBe(200);
       const studentToken = loginRes.body.accessToken;
+      expect(loginRes.body.expiresIn).toBe(900);
       expect(loginRes.body.user.mustChangePassword).toBe(true);
 
-      // 2. /auth/me reports mustChangePassword: true
+      // 2. Forced-change student is blocked (403 Forbidden) from normal student domain APIs
+      const blockedAssessmentsRes = await request(app.getHttpServer())
+        .get('/student/assessments')
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(blockedAssessmentsRes.status).toBe(403);
+      expect(blockedAssessmentsRes.body.message).toBe(
+        'Password change required before accessing this resource',
+      );
+
+      // 3. Forced-change student is blocked (403 Forbidden) from notifications domain API
+      const blockedNotificationsRes = await request(app.getHttpServer())
+        .get('/notifications')
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(blockedNotificationsRes.status).toBe(403);
+      expect(blockedNotificationsRes.body.message).toBe(
+        'Password change required before accessing this resource',
+      );
+
+      // 4. Teacher is unaffected and can access domain APIs
+      const teacherNotificationsRes = await request(app.getHttpServer())
+        .get('/notifications')
+        .set('Authorization', `Bearer ${teacherToken}`);
+
+      expect(teacherNotificationsRes.status).toBe(200);
+
+      // 5. /auth/me still works and reports mustChangePassword: true
       const meResBefore = await request(app.getHttpServer())
         .get('/auth/me')
         .set('Authorization', `Bearer ${studentToken}`);
@@ -265,7 +293,7 @@ describe('Auth API (e2e)', () => {
       expect(meResBefore.status).toBe(200);
       expect(meResBefore.body.mustChangePassword).toBe(true);
 
-      // 3. Reject wrong current password
+      // 6. Reject wrong current password
       const wrongPwdRes = await request(app.getHttpServer())
         .post('/auth/change-password')
         .set('Authorization', `Bearer ${studentToken}`)
@@ -275,7 +303,7 @@ describe('Auth API (e2e)', () => {
         });
       expect(wrongPwdRes.status).toBe(401);
 
-      // 4. Change password succeeds
+      // 7. Change password succeeds
       const newPassword = 'validNewPassword456';
       const changeRes = await request(app.getHttpServer())
         .post('/auth/change-password')
@@ -288,7 +316,7 @@ describe('Auth API (e2e)', () => {
       expect(changeRes.status).toBe(200);
       expect(changeRes.body.success).toBe(true);
 
-      // 5. /auth/me now reports mustChangePassword: false
+      // 8. /auth/me now reports mustChangePassword: false
       const meResAfter = await request(app.getHttpServer())
         .get('/auth/me')
         .set('Authorization', `Bearer ${studentToken}`);
@@ -296,7 +324,20 @@ describe('Auth API (e2e)', () => {
       expect(meResAfter.status).toBe(200);
       expect(meResAfter.body.mustChangePassword).toBe(false);
 
-      // 6. Old temporary password login fails
+      // 9. After password change, student can now access student domain APIs
+      const allowedAssessmentsRes = await request(app.getHttpServer())
+        .get('/student/assessments')
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(allowedAssessmentsRes.status).toBe(200);
+
+      const allowedNotificationsRes = await request(app.getHttpServer())
+        .get('/notifications')
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(allowedNotificationsRes.status).toBe(200);
+
+      // 10. Old temporary password login fails
       const oldLoginRes = await request(app.getHttpServer())
         .post('/auth/login')
         .send({
@@ -305,7 +346,7 @@ describe('Auth API (e2e)', () => {
         });
       expect(oldLoginRes.status).toBe(401);
 
-      // 7. New password login succeeds
+      // 11. New password login succeeds
       const newLoginRes = await request(app.getHttpServer())
         .post('/auth/login')
         .send({
@@ -313,6 +354,7 @@ describe('Auth API (e2e)', () => {
           password: newPassword,
         });
       expect(newLoginRes.status).toBe(200);
+      expect(newLoginRes.body.expiresIn).toBe(900);
       expect(newLoginRes.body.user.mustChangePassword).toBe(false);
     });
   });

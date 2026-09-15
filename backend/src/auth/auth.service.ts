@@ -11,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtPayload } from './types/jwt-payload.type';
+import { resolveJwtExpiresInSeconds } from './utils/jwt-config.util';
 
 @Injectable()
 export class AuthService {
@@ -21,20 +22,7 @@ export class AuthService {
   ) {}
 
   getAccessTokenExpiresInSeconds(): number {
-    const raw = this.configService.get<string | number>(
-      'JWT_ACCESS_EXPIRES_IN_SECONDS',
-    );
-    if (raw) {
-      return Number(raw);
-    }
-    const fallback = this.configService.get<string>('JWT_ACCESS_EXPIRES_IN');
-    if (fallback) {
-      if (fallback.endsWith('m')) return parseInt(fallback, 10) * 60;
-      if (fallback.endsWith('s')) return parseInt(fallback, 10);
-      if (fallback.endsWith('h')) return parseInt(fallback, 10) * 3600;
-      return Number(fallback) || 900;
-    }
-    return 900;
+    return resolveJwtExpiresInSeconds(this.configService);
   }
 
   async login(dto: LoginDto) {
@@ -157,9 +145,12 @@ export class AuthService {
     const mustChangePassword =
       user.role === UserRole.STUDENT ? studentMustChangePassword : false;
 
+    const expiresIn = this.getAccessTokenExpiresInSeconds();
+
     return {
       accessToken,
       tokenType: 'Bearer',
+      expiresIn,
       user: {
         id: user.id,
         firstName: user.firstName,

@@ -101,6 +101,53 @@ describe('Frontend BFF Auth & Session Foundation', () => {
       assert.ok(setCookie.includes('Max-Age=900'));
     });
 
+    it('login route honors backend expiresIn if returned (e.g. 3600s)', async () => {
+      globalThis.fetch = async (url) => {
+        if (url.toString().endsWith('/auth/login')) {
+          return new Response(
+            JSON.stringify({
+              accessToken: 'mocked-jwt-token-custom-exp',
+              tokenType: 'Bearer',
+              expiresIn: 3600,
+              user: {
+                id: 'usr-123',
+                firstName: 'Alice',
+                lastName: 'Teacher',
+                email: 'alice@example.com',
+                role: 'TEACHER',
+                status: 'ACTIVE',
+              },
+            }),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            },
+          );
+        }
+        return new Response('Not Found', { status: 404 });
+      };
+
+      const req = new NextRequest('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          host: 'localhost:3000',
+          origin: 'http://localhost:3000',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          identifier: 'alice@example.com',
+          password: 'password123',
+        }),
+      });
+
+      const res = await loginRoute(req);
+      assert.equal(res.status, 200);
+
+      const setCookie = res.headers.get('set-cookie');
+      assert.ok(setCookie, 'set-cookie header must be present');
+      assert.ok(setCookie.includes('Max-Age=3600'));
+    });
+
     it('logout route clears access_token cookie', async () => {
       globalThis.fetch = async () => new Response(JSON.stringify({ success: true }), { status: 200 });
 

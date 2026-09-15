@@ -8,7 +8,9 @@ import {
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { MustChangePasswordGuard } from './guards/must-change-password.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { resolveJwtExpiresInSeconds } from './utils/jwt-config.util';
 
 @Module({
   imports: [
@@ -29,21 +31,7 @@ import { RolesGuard } from './guards/roles.guard';
           );
         }
 
-        const rawExpiresIn = configService.get<string | number>(
-          'JWT_ACCESS_EXPIRES_IN_SECONDS',
-        );
-        let expiresIn = 900;
-        if (rawExpiresIn) {
-          expiresIn = Number(rawExpiresIn) || 900;
-        } else {
-          const fallback = configService.get<string>('JWT_ACCESS_EXPIRES_IN');
-          if (fallback) {
-            if (fallback.endsWith('m')) expiresIn = parseInt(fallback, 10) * 60;
-            else if (fallback.endsWith('s')) expiresIn = parseInt(fallback, 10);
-            else if (fallback.endsWith('h')) expiresIn = parseInt(fallback, 10) * 3600;
-            else expiresIn = Number(fallback) || 900;
-          }
-        }
+        const expiresIn = resolveJwtExpiresInSeconds(configService);
 
         return {
           secret,
@@ -63,12 +51,14 @@ import { RolesGuard } from './guards/roles.guard';
     AuthService,
     JwtAuthGuard,
     RolesGuard,
+    MustChangePasswordGuard,
   ],
 
   exports: [
     JwtModule,
     JwtAuthGuard,
     RolesGuard,
+    MustChangePasswordGuard,
   ],
 })
 export class AuthModule {}

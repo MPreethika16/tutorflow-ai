@@ -14,6 +14,7 @@ import type { Response } from 'express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { MustChangePasswordGuard } from '../auth/guards/must-change-password.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { JwtPayload } from '../auth/types/jwt-payload.type';
 import { UserRole } from '../generated/prisma/client';
@@ -25,6 +26,7 @@ import { StudentAssessmentsService } from './student-assessments.service';
 @UseGuards(
   JwtAuthGuard,
   RolesGuard,
+  MustChangePasswordGuard,
 )
 @Roles(UserRole.STUDENT)
 export class StudentAssessmentsController {

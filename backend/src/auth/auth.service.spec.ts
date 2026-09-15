@@ -122,7 +122,36 @@ describe('AuthService', () => {
       email: mockUser.email,
     });
     expect(result.accessToken).toBe('mocked-jwt-token');
+    expect(result.expiresIn).toBe(900);
     expect(result.user.email).toBe('teacher@example.com');
+  });
+
+  it('returns configured expiresIn when JWT_ACCESS_EXPIRES_IN_SECONDS is custom', async () => {
+    configService.get.mockImplementation((key: string) => {
+      if (key === 'JWT_ACCESS_EXPIRES_IN_SECONDS') return '3600';
+      return null;
+    });
+
+    const mockUser = {
+      id: 'teacher-uuid-1',
+      email: 'teacher@example.com',
+      firstName: 'Alice',
+      lastName: 'Teacher',
+      passwordHash: 'hashed-pwd',
+      role: UserRole.TEACHER,
+      status: UserStatus.ACTIVE,
+    };
+
+    prisma.user.findUnique.mockResolvedValue(mockUser);
+    prisma.user.update.mockResolvedValue({ ...mockUser, lastLoginAt: new Date() });
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+    const result = await service.login({
+      identifier: 'teacher@example.com',
+      password: 'validPassword123',
+    });
+
+    expect(result.expiresIn).toBe(3600);
   });
 
   it('studentId login success', async () => {
